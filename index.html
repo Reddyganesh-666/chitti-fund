@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="te">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>మృదుల చిట్టీ ఫండ్ · Mrudhula Chitti Fund</title>
+<meta name="description" content="చిట్టీ ఫండ్ కలెక్షన్ ట్రాకర్ — Chit fund monthly collection tracker">
+<meta name="theme-color" content="#1E2A3A">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="చిట్టీ ఫండ్">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&family=Noto+Sans+Telugu:wght@400;500;600;700&family=Noto+Serif+Telugu:wght@500;600;700&display=swap');
+
+  :root {
+    --page:#F3EDDA; --card:#FBF7EC; --line:#E2D6B8;
+    --navy:#1E2A3A; --ink:#2B2A25; --ink-soft:#79725D;
+    --red:#9C3D2E; --green:#3F6B4A; --brass:#8A6530;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; }
+  body {
+    background: var(--page); color: var(--ink);
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans Telugu', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+  button, input { font-family: inherit; }
+  .display { font-family: 'Fraunces', Georgia, 'Noto Serif Telugu', serif; }
+  .mono { font-family: 'IBM Plex Mono', ui-monospace, 'Noto Sans Telugu', monospace; font-variant-numeric: tabular-nums; }
+
+  .container { max-width: 720px; margin: 0 auto; padding: 0 16px; }
+
+  header.app-header { background: var(--navy); color: #F3EDDA; }
+  header.app-header .inner { display:flex; align-items:center; gap:12px; padding:16px; max-width:720px; margin:0 auto; }
+  .logo-badge { width:38px; height:38px; border-radius:4px; background:var(--brass); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--navy); }
+  .app-title { font-size:18.5px; font-weight:600; line-height:1.2; }
+  .app-subtitle { font-size:12px; opacity:.75; }
+
+  nav.tab-bar { border-bottom:1px solid var(--line); background:var(--card); overflow-x:auto; position:sticky; top:0; z-index:10; }
+  nav.tab-bar .inner { display:flex; min-width:max-content; max-width:720px; margin:0 auto; }
+  .tab-btn { display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 16px; min-width:82px; background:none; border:none; border-bottom:2px solid transparent; color:var(--ink-soft); cursor:pointer; position:relative; }
+  .tab-btn.active { color:var(--navy); border-bottom-color:var(--red); }
+  .tab-btn .label { font-size:11.5px; font-weight:500; line-height:1.1; }
+  .tab-btn.active .label { font-weight:600; }
+  .tab-badge { position:absolute; top:5px; right:14px; background:var(--red); color:#fff; font-size:9.5px; font-weight:700; border-radius:8px; min-width:15px; height:15px; display:flex; align-items:center; justify-content:center; padding:0 3px; }
+
+  .month-row { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; max-width:720px; margin:0 auto; }
+  .month-nav-btn { padding:7px; background:var(--card); border:1px solid var(--line); border-radius:3px; color:var(--ink); cursor:pointer; display:flex; }
+  .month-label-te { font-size:16px; font-weight:600; text-align:center; }
+  .month-label-en { font-size:12px; color:var(--ink-soft); text-align:center; }
+
+  main { padding: 4px 16px 40px; }
+
+  .card { background:var(--card); border:1px solid var(--line); border-radius:4px; }
+  .hero { border-left:4px solid var(--red); padding:20px; }
+  .rows > *:not(:last-child) { border-bottom:1px solid var(--line); }
+
+  .bi-label .te { font-size:11px; color:var(--ink-soft); font-weight:500; }
+  .bi-label .en { font-size:9.5px; color:var(--ink-soft); opacity:.8; margin-top:1px; }
+  .bi-label.lg .te { font-size:13px; }
+  .bi-label.lg .en { font-size:11.5px; }
+
+  .pill { display:inline-flex; align-items:center; padding:3px 10px; border-radius:2px; font-size:12px; font-weight:600; color:#FBF7EC; cursor:pointer; border:none; }
+  .pill.paid { background:var(--green); }
+  .pill.unpaid { background:var(--red); }
+
+  .btn-primary { background:var(--navy); color:#fff; padding:9px 16px; border-radius:3px; font-size:13px; font-weight:600; border:none; cursor:pointer; display:inline-flex; align-items:center; gap:6px; justify-content:center; }
+  .btn-ghost { color:var(--ink-soft); padding:7px 10px; font-size:12.5px; background:none; border:none; cursor:pointer; }
+  .btn-dashed { border:1px dashed var(--line); color:var(--navy); padding:10px 14px; border-radius:3px; font-size:13px; font-weight:600; background:none; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; width:100%; }
+  .icon-btn { background:none; border:none; color:var(--ink-soft); cursor:pointer; display:inline-flex; padding:2px; }
+
+  input[type=text], input[type=number], input[type=tel], input[type=date], select {
+    padding:7px 9px; border:1px solid var(--line); border-radius:2px; background:#fff; font-size:13.5px; color:var(--ink); width:100%;
+  }
+  input:focus, select:focus { outline:2px solid var(--navy); outline-offset:1px; }
+
+  .empty-state { padding:32px 20px; text-align:center; }
+  .empty-state .te { font-size:15.5px; font-weight:600; }
+  .empty-state .en { font-size:12.5px; color:var(--ink-soft); margin-top:2px; }
+  .empty-state .hint { font-size:12px; color:var(--ink-soft); margin-top:10px; }
+
+  .flex { display:flex; }
+  .flex-col { display:flex; flex-direction:column; }
+  .items-center { align-items:center; }
+  .items-end { align-items:flex-end; }
+  .justify-between { justify-content:space-between; }
+  .justify-center { justify-content:center; }
+  .justify-end { justify-content:flex-end; }
+  .wrap { flex-wrap:wrap; }
+  .g2 { gap:8px; } .g3 { gap:12px; } .g4 { gap:16px; } .g5 { gap:20px; } .g8 { gap:32px; }
+  .g1 { gap:4px; }
+  .method-btn { padding:5px 9px; border-radius:2px; font-size:11.5px; font-weight:600; border:1px solid var(--line); background:#fff; color:var(--ink); cursor:pointer; }
+  .stack { display:flex; flex-direction:column; gap:16px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .field-label { font-size:11px; color:var(--ink-soft); margin-bottom:3px; }
+  .row-pad { padding:12px 14px; }
+
+  .group-chip { padding:7px 14px; border-radius:3px; font-size:13px; font-weight:600; flex-shrink:0; background:var(--card); color:var(--ink); border:1px solid var(--line); cursor:pointer; }
+  .group-chip.active { background:var(--navy); color:var(--page); border-color:var(--navy); }
+  .chip-scroll { display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; }
+
+  .cat-btn { padding:5px 10px; border-radius:2px; font-size:12px; background:#fff; color:var(--ink); border:1px solid var(--line); cursor:pointer; }
+  .cat-btn.active { background:var(--navy); color:#fff; border-color:var(--navy); }
+
+  .save-toast { position:fixed; bottom:14px; left:50%; transform:translateX(-50%); background:var(--red); color:#fff; padding:8px 16px; border-radius:4px; font-size:12.5px; z-index:50; }
+  .install-banner { background:var(--brass); color:#fff; padding:8px 16px; font-size:12px; display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .install-banner button { background:rgba(255,255,255,.22); color:#fff; border:none; padding:5px 10px; border-radius:3px; font-size:12px; font-weight:600; cursor:pointer; flex-shrink:0; }
+
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  ::-webkit-scrollbar { height:0; width:0; }
+  .w-full { width:100%; }
+  .seat-note { font-size:11.5px; color:var(--ink-soft); }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+'use strict';
+
+/* =========================================================
+   Constants
+   ========================================================= */
+
+var STORAGE_KEYS = { groups: 'cf_groups_v1', payments: 'cf_payments_v1', usage: 'cf_usage_v1', winners: 'cf_winners_v1' };
+
+var TELUGU_MONTHS = ['జనవరి','ఫిబ్రవరి','మార్చి','ఏప్రిల్','మే','జూన్','జూలై','ఆగస్టు','సెప్టెంబర్','అక్టోబర్','నవంబర్','డిసెంబర్'];
+var ENGLISH_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+var USAGE_CATEGORIES = [
+  { id: 'payout', te: 'సభ్యునికి చెల్లింపు', en: 'Payout to member' },
+  { id: 'expense', te: 'ఖర్చు', en: 'Expense' },
+  { id: 'deposit', te: 'బ్యాంక్‌లో జమ', en: 'Bank deposit' },
+  { id: 'other', te: 'ఇతర', en: 'Other' },
+];
+
+var PAYMENT_METHODS = [
+  { id: 'cash', te: 'నగదు', en: 'Cash' },
+  { id: 'phonepe', te: 'PhonePe', en: 'PhonePe' },
+];
+
+var SEED_GROUPS = [
+  {
+    "id": "g1",
+    "name": "Chitti-1",
+    "note": "మీ ఫైల్‌లో \"SEAT NO: 1,00,000\" అని ఉంది",
+    "chitAmount": 100000,
+    "members": [
+      {
+        "id": "g1-s1",
+        "seatNo": 1,
+        "name": "రెడ్డి కాంతం",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s2",
+        "seatNo": 2,
+        "name": "రెడ్డి గణేష్",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s3",
+        "seatNo": 3,
+        "name": "చల్లా రమ్మయమ్మ",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s4",
+        "seatNo": 4,
+        "name": "గండి విజయ",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s5",
+        "seatNo": 5,
+        "name": "ఆధిరెడ్డి సింహాచలం",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s6",
+        "seatNo": 6,
+        "name": "G సాయి",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s7",
+        "seatNo": 7,
+        "name": "G సాయి",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s8",
+        "seatNo": 8,
+        "name": "ద్వారంపూడి వెంకటలక్ష్మి",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s9",
+        "seatNo": 9,
+        "name": "ద్వారంపూడి వెంకటలక్ష్మి",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s10",
+        "seatNo": 10,
+        "name": "కర్రి రామలక్ష్మి",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s11",
+        "seatNo": 11,
+        "name": "కర్రి రామలక్ష్మి",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s12",
+        "seatNo": 12,
+        "name": "కర్రి రామలక్ష్మి",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s13",
+        "seatNo": 13,
+        "name": "కర్రి రామలక్ష్మి",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s14",
+        "seatNo": 14,
+        "name": "సిరికి ప్రసన్న",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s15",
+        "seatNo": 15,
+        "name": "సిరికి దివ్య",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s16",
+        "seatNo": 16,
+        "name": "సిరికి దివ్య",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s17",
+        "seatNo": 17,
+        "name": "త్రిమూతులు",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s18",
+        "seatNo": 18,
+        "name": "త్రిమూతులు",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g1-s19",
+        "seatNo": 19,
+        "name": "hyma",
+        "phone": "",
+        "monthlyAmount": 0
+      }
+    ]
+  },
+  {
+    "id": "g2",
+    "name": "Chitti-2",
+    "note": "మీ ఫైల్‌లో \"SEAT NO: 11\" అని ఉంది",
+    "chitAmount": 0,
+    "members": [
+      {
+        "id": "g2-s1",
+        "seatNo": 1,
+        "name": "గండీ అన్నపూర్ణ & DAD",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s2",
+        "seatNo": 2,
+        "name": "VVD మాధురి",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s3",
+        "seatNo": 3,
+        "name": "ATCYUTH",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s4",
+        "seatNo": 4,
+        "name": "KALYAN",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s5",
+        "seatNo": 5,
+        "name": "బియాల సీతారాము",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s6",
+        "seatNo": 6,
+        "name": "కసిరెడ్డి సూరిబాబు",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s7",
+        "seatNo": 7,
+        "name": "గూళిపల్లి.లవన్య",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s8",
+        "seatNo": 8,
+        "name": "G SATHYA",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s9",
+        "seatNo": 9,
+        "name": "కావ్య",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s10",
+        "seatNo": 10,
+        "name": "పి రాజు",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s11",
+        "seatNo": 11,
+        "name": "హైమా",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s12",
+        "seatNo": 12,
+        "name": "హైమా",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s13",
+        "seatNo": 13,
+        "name": "CH RAVI RAJU",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s14",
+        "seatNo": 14,
+        "name": "G.SAREWAARARAO",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s15",
+        "seatNo": 15,
+        "name": "N  SATISH",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s16",
+        "seatNo": 16,
+        "name": "రెడ్డి మృధుల",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s17",
+        "seatNo": 17,
+        "name": "గణేష్",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s18",
+        "seatNo": 18,
+        "name": "ప్రసన్న",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g2-s19",
+        "seatNo": 19,
+        "name": "P RAJU & GANESH",
+        "phone": "",
+        "monthlyAmount": 0
+      }
+    ]
+  },
+  {
+    "id": "g3",
+    "name": "Chitti-3",
+    "note": "మీ ఫైల్‌లో \"SEAT NO: 9\" అని ఉంది",
+    "chitAmount": 0,
+    "members": [
+      {
+        "id": "g3-s1",
+        "seatNo": 1,
+        "name": "మామిడాడ స్వామి",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s2",
+        "seatNo": 2,
+        "name": "ఉమా",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s3",
+        "seatNo": 3,
+        "name": "డి.బసవ",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s4",
+        "seatNo": 4,
+        "name": "DVD",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s5",
+        "seatNo": 5,
+        "name": "త్రిమూర్తులు",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s6",
+        "seatNo": 6,
+        "name": "dad",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s7",
+        "seatNo": 7,
+        "name": "గ్రంది వీరబాబు",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s9",
+        "seatNo": 9,
+        "name": "వంశీ",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s10",
+        "seatNo": 10,
+        "name": "జోసెఫ్",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s11",
+        "seatNo": 11,
+        "name": "మోహన్",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s12",
+        "seatNo": 12,
+        "name": "చైతన్య",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s13",
+        "seatNo": 13,
+        "name": "రాఘవ",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s14",
+        "seatNo": 14,
+        "name": "కుమార్",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s15",
+        "seatNo": 15,
+        "name": "గణేష్",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s16",
+        "seatNo": 16,
+        "name": "ప్రియ",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s17",
+        "seatNo": 17,
+        "name": "k sriram",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s18",
+        "seatNo": 18,
+        "name": "N.శ్రీనివాస్",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s19",
+        "seatNo": 19,
+        "name": "PMNV SRINIVAS",
+        "phone": "",
+        "monthlyAmount": 0
+      },
+      {
+        "id": "g3-s20",
+        "seatNo": 20,
+        "name": "PAVAN",
+        "phone": "",
+        "monthlyAmount": 0
+      }
+    ]
+  }
+];
+
+/* =========================================================
+   Small helpers
+   ========================================================= */
+
+function genId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function monthKeyOf(date) { return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0'); }
+
+function monthKeyToDate(monthKey) {
+  var parts = monthKey.split('-').map(Number);
+  return new Date(parts[0], parts[1] - 1, 1);
+}
+
+function shiftMonth(monthKey, delta) {
+  var d = monthKeyToDate(monthKey);
+  d.setMonth(d.getMonth() + delta);
+  return monthKeyOf(d);
+}
+
+function formatMonthParts(monthKey) {
+  var parts = monthKey.split('-').map(Number);
+  return { te: TELUGU_MONTHS[parts[1] - 1] + ' ' + parts[0], en: ENGLISH_MONTHS[parts[1] - 1] + ' ' + parts[0] };
+}
+
+function formatINR(amount) { return (Number(amount) || 0).toLocaleString('en-IN'); }
+
+function todayISO() {
+  var d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function paymentKey(monthKey, groupId, memberId) { return monthKey + '::' + groupId + '::' + memberId; }
+function winnerKey(monthKey, groupId) { return monthKey + '::' + groupId; }
+
+function hasWon(groupId, memberId) {
+  for (var k in state.winners) {
+    var parts = k.split('::');
+    if (parts[1] === groupId && state.winners[k].memberId === memberId) return true;
+  }
+  return false;
+}
+
+function buildReminderMessage(member, amount, monthParts, groupName) {
+  return 'నమస్తే ' + member.name + ' గారు,\n' + groupName + ' - ' + monthParts.te + ' నెల చిటీ మొత్తం ₹' + formatINR(amount) + ' ఇంకా కట్టలేదు. దయచేసి వీలైనంత త్వరగా కట్టగలరు. ధన్యవాదాలు.\n\n' +
+    'Hello ' + member.name + ',\nYour ' + groupName + ' chit payment of ₹' + formatINR(amount) + ' for ' + monthParts.en + ' is still pending. Please pay at the earliest. Thank you.';
+}
+
+/* =========================================================
+   Inline icon set (stroke-based, 24x24 viewBox)
+   ========================================================= */
+
+var ICON_PATHS = {
+  wallet: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 7V5a2 2 0 0 1 2-2h13a1 1 0 0 1 1 1v3"/><circle cx="17" cy="13.5" r="1.4"/>',
+  calendar: '<rect x="3" y="5" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="3" x2="8" y2="7"/><line x1="16" y1="3" x2="16" y2="7"/>',
+  bell: '<path d="M6 8a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+  book: '<path d="M4 5c3-1.5 6-1.5 8 0v14c-2-1.5-5-1.5-8 0V5Z"/><path d="M20 5c-3-1.5-6-1.5-8 0v14c2-1.5 5-1.5 8 0V5Z"/>',
+  users: '<circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3.5 2.5-6 5.5-6s5.5 2.5 5.5 6"/><circle cx="17.3" cy="9" r="2.6"/><path d="M15.6 14.2c2.4.4 4.2 2.5 4.2 5.8"/>',
+  chevronLeft: '<polyline points="15 18 9 12 15 6"/>',
+  chevronRight: '<polyline points="9 18 15 12 9 6"/>',
+  chevronDown: '<polyline points="6 9 12 15 18 9"/>',
+  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  check: '<polyline points="20 6 9 17 4 12"/>',
+  x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  copy: '<rect x="9" y="9" width="12" height="12" rx="1.5"/><path d="M5 15V4.5A1.5 1.5 0 0 1 6.5 3H15"/>',
+  pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  trash: '<polyline points="3 6 5 6 21 6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
+  loader: '<line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="7.8" y2="7.8"/><line x1="16.2" y1="16.2" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="7.8" y2="16.2"/><line x1="16.2" y1="7.8" x2="19.1" y2="4.9"/>',
+  download: '<path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 19h14"/>',
+};
+
+function icon(name, size, extraClass) {
+  size = size || 16;
+  var cls = extraClass ? ' class="' + extraClass + '"' : '';
+  return '<svg' + cls + ' width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + (ICON_PATHS[name] || '') + '</svg>';
+}
+
+/* =========================================================
+   State
+   ========================================================= */
+
+var state = {
+  loaded: false,
+  groups: [],
+  payments: {},
+  usageLog: [],
+  activeTab: 'overview',
+  selectedMonth: monthKeyOf(new Date()),
+  selectedGroupId: null,
+  copiedId: null,
+  editingPaymentId: null,
+  editAmount: '',
+  editDate: '',
+  editMethod: 'cash',
+  usageFormOpen: false,
+  usageForm: { desc: '', amount: '', category: USAGE_CATEGORIES[0].id, date: todayISO() },
+  confirmDeleteUsageId: null,
+  expandedGroupId: null,
+  memberForms: {},
+  showAddGroup: false,
+  newGroupName: '',
+  confirmDeleteMember: null,
+  editingMemberId: null,
+  editMemberName: '',
+  editMemberPhone: '',
+  editMemberAmount: '',
+  winners: {},
+  editingWinnerKey: null,
+  winnerMemberId: '',
+  winnerAmount: '',
+  editingChitAmountGroupId: null,
+  chitAmountInput: '',
+  saveErrorMsg: '',
+  installEvent: null,
+  showInstallBanner: false,
+};
+
+function ensureMemberForm(gid) {
+  if (!state.memberForms[gid]) state.memberForms[gid] = { name: '', phone: '', amount: '', show: false };
+  return state.memberForms[gid];
+}
+
+/* =========================================================
+   Persistence (localStorage — this app runs standalone, outside
+   any Claude artifact, so localStorage is the right, normal tool)
+   ========================================================= */
+
+function loadState() {
+  try {
+    var g = localStorage.getItem(STORAGE_KEYS.groups);
+    state.groups = g ? JSON.parse(g) : SEED_GROUPS;
+  } catch (e) { state.groups = SEED_GROUPS; }
+  try {
+    var p = localStorage.getItem(STORAGE_KEYS.payments);
+    state.payments = p ? JSON.parse(p) : {};
+  } catch (e) { state.payments = {}; }
+  try {
+    var u = localStorage.getItem(STORAGE_KEYS.usage);
+    state.usageLog = u ? JSON.parse(u) : [];
+  } catch (e) { state.usageLog = []; }
+  try {
+    var w = localStorage.getItem(STORAGE_KEYS.winners);
+    state.winners = w ? JSON.parse(w) : {};
+  } catch (e) { state.winners = {}; }
+  state.selectedGroupId = state.groups[0] ? state.groups[0].id : null;
+  state.expandedGroupId = state.groups[0] ? state.groups[0].id : null;
+  state.loaded = true;
+}
+
+function persistGroups() {
+  try { localStorage.setItem(STORAGE_KEYS.groups, JSON.stringify(state.groups)); state.saveErrorMsg = ''; }
+  catch (e) { state.saveErrorMsg = 'సేవ్ కాలేదు, మళ్ళీ ప్రయత్నించండి / Could not save — try again'; }
+}
+function persistWinners() {
+  try { localStorage.setItem(STORAGE_KEYS.winners, JSON.stringify(state.winners)); state.saveErrorMsg = ''; }
+  catch (e) { state.saveErrorMsg = 'సేవ్ కాలేదు, మళ్ళీ ప్రయత్నించండి / Could not save — try again'; }
+}
+function persistPayments() {
+  try { localStorage.setItem(STORAGE_KEYS.payments, JSON.stringify(state.payments)); state.saveErrorMsg = ''; }
+  catch (e) { state.saveErrorMsg = 'సేవ్ కాలేదు, మళ్ళీ ప్రయత్నించండి / Could not save — try again'; }
+}
+function persistUsage() {
+  try { localStorage.setItem(STORAGE_KEYS.usage, JSON.stringify(state.usageLog)); state.saveErrorMsg = ''; }
+  catch (e) { state.saveErrorMsg = 'సేవ్ కాలేదు, మళ్ళీ ప్రయత్నించండి / Could not save — try again'; }
+}
+
+/* =========================================================
+   Derived data
+   ========================================================= */
+
+function computeTotals() {
+  var totalCollected = 0;
+  for (var k in state.payments) { if (state.payments[k].paid) totalCollected += Number(state.payments[k].amount || 0); }
+  var totalUsed = 0;
+  for (var i = 0; i < state.usageLog.length; i++) totalUsed += Number(state.usageLog[i].amount || 0);
+  return { totalCollected: totalCollected, totalUsed: totalUsed, balance: totalCollected - totalUsed };
+}
+
+function computeThisMonth(monthKey) {
+  var collected = 0;
+  var methodTotals = { cash: 0, phonepe: 0 };
+  for (var k in state.payments) {
+    if (k.indexOf(monthKey + '::') === 0 && state.payments[k].paid) {
+      var amt = Number(state.payments[k].amount || 0);
+      collected += amt;
+      methodTotals[state.payments[k].method === 'phonepe' ? 'phonepe' : 'cash'] += amt;
+    }
+  }
+  var used = 0;
+  for (var i = 0; i < state.usageLog.length; i++) { if (state.usageLog[i].monthKey === monthKey) used += Number(state.usageLog[i].amount || 0); }
+  return { collected: collected, used: used, methodTotals: methodTotals };
+}
+
+function computeGroupStats(monthKey) {
+  return state.groups.map(function (g) {
+    var total = g.members.length, paidCount = 0, collected = 0;
+    g.members.forEach(function (m) {
+      var rec = state.payments[paymentKey(monthKey, g.id, m.id)];
+      if (rec && rec.paid) { paidCount++; collected += Number(rec.amount || 0); }
+    });
+    return { id: g.id, name: g.name, total: total, paidCount: paidCount, collected: collected };
+  });
+}
+
+function computeUnpaid(monthKey) {
+  var list = [];
+  state.groups.forEach(function (g) {
+    g.members.forEach(function (m) {
+      var rec = state.payments[paymentKey(monthKey, g.id, m.id)];
+      if (!(rec && rec.paid)) list.push({ id: m.id, name: m.name, seatNo: m.seatNo, monthlyAmount: m.monthlyAmount, groupId: g.id, groupName: g.name });
+    });
+  });
+  return list;
+}
+
+function recentUsage() {
+  return state.usageLog.slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 3);
+}
+
+/* =========================================================
+   Render: shell pieces
+   ========================================================= */
+
+var TABS = [
+  { id: 'overview', icon: 'wallet', te: 'సారాంశం', en: 'Overview' },
+  { id: 'payments', icon: 'calendar', te: 'చెల్లింపులు', en: 'Payments' },
+  { id: 'reminders', icon: 'bell', te: 'రిమైండర్లు', en: 'Reminders' },
+  { id: 'usage', icon: 'book', te: 'నిధి వినియోగం', en: 'Usage' },
+  { id: 'members', icon: 'users', te: 'సభ్యులు', en: 'Members' },
+];
+
+function renderHeader() {
+  return '' +
+    '<header class="app-header"><div class="inner justify-between">' +
+      '<div class="flex items-center g3">' +
+      '<div class="logo-badge">' + icon('wallet', 19) + '</div>' +
+      '<div><div class="app-title display">మృదుల చిట్టీ ఫండ్</div><div class="app-subtitle">Mrudhula Chitti Fund</div></div>' +
+      '</div>' +
+      '<button data-action="export-excel" title="Excel డౌన్‌లోడ్ / Download Excel" style="background:rgba(255,255,255,.14);color:#F3EDDA;border:none;border-radius:3px;padding:8px 10px;display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12px;font-weight:600;flex-shrink:0">' +
+        icon('download', 15) + '<span>Excel</span></button>' +
+    '</div></header>';
+}
+
+function renderTabBar() {
+  var unpaidCount = computeUnpaid(state.selectedMonth).length;
+  var btns = TABS.map(function (t) {
+    var active = state.activeTab === t.id;
+    var badge = (t.id === 'reminders' && unpaidCount > 0) ? '<span class="tab-badge">' + unpaidCount + '</span>' : '';
+    return '<button class="tab-btn' + (active ? ' active' : '') + '" data-action="set-tab" data-tab="' + t.id + '">' +
+      '<span style="position:relative">' + icon(t.icon, 17) + badge + '</span>' +
+      '<span class="label">' + t.te + '</span></button>';
+  }).join('');
+  return '<nav class="tab-bar"><div class="inner">' + btns + '</div></nav>';
+}
+
+function renderMonthSelector() {
+  var parts = formatMonthParts(state.selectedMonth);
+  return '' +
+    '<div class="month-row">' +
+      '<button class="month-nav-btn" data-action="prev-month" aria-label="Previous month">' + icon('chevronLeft', 16) + '</button>' +
+      '<div><div class="month-label-te display">' + esc(parts.te) + '</div><div class="month-label-en">' + esc(parts.en) + '</div></div>' +
+      '<button class="month-nav-btn" data-action="next-month" aria-label="Next month">' + icon('chevronRight', 16) + '</button>' +
+    '</div>';
+}
+
+function biLabel(te, en, cls) {
+  return '<div class="bi-label ' + (cls || '') + '"><div class="te">' + esc(te) + '</div><div class="en">' + esc(en) + '</div></div>';
+}
+
+function emptyState(te, en, hint) {
+  return '<div class="card empty-state"><div class="te display">' + esc(te) + '</div><div class="en">' + esc(en) + '</div>' +
+    (hint ? '<div class="hint">' + esc(hint) + '</div>' : '') + '</div>';
+}
+
+/* =========================================================
+   Overview tab
+   ========================================================= */
+
+function renderOverview() {
+  var totals = computeTotals();
+  var thisMonth = computeThisMonth(state.selectedMonth);
+  var groupStats = computeGroupStats(state.selectedMonth);
+  var recent = recentUsage();
+
+  var html = '<div class="container stack" style="padding-top:4px;padding-bottom:32px">';
+
+  html += '<div class="card hero">' +
+    biLabel('మీ దగ్గర ఉన్న మొత్తం నిలవ', 'Total balance in hand', 'lg') +
+    '<div class="mono" style="font-size:32px;font-weight:700;color:var(--navy);margin-top:6px">₹' + formatINR(totals.balance) + '</div>' +
+    '<div class="flex g8" style="margin-top:16px;padding-top:12px;border-top:1px solid var(--line)">' +
+      '<div>' + biLabel('మొత్తం వసూలు', 'Total collected') + '<div class="mono" style="font-size:14.5px;font-weight:600;margin-top:2px">₹' + formatINR(totals.totalCollected) + '</div></div>' +
+      '<div>' + biLabel('మొత్తం వినియోగం', 'Total used') + '<div class="mono" style="font-size:14.5px;font-weight:600;margin-top:2px;color:var(--red)">₹' + formatINR(totals.totalUsed) + '</div></div>' +
+    '</div></div>';
+
+  html += '<div>' + biLabel('ఈ నెల', 'This month') +
+    '<div class="flex g3" style="margin-top:8px">' +
+      '<div class="card" style="padding:14px;flex:1"><div style="font-size:11px;color:var(--ink-soft)">వసూలు / Collected</div><div class="mono" style="font-size:17px;font-weight:700;color:var(--green)">₹' + formatINR(thisMonth.collected) + '</div></div>' +
+      '<div class="card" style="padding:14px;flex:1"><div style="font-size:11px;color:var(--ink-soft)">వినియోగం / Used</div><div class="mono" style="font-size:17px;font-weight:700;color:var(--red)">₹' + formatINR(thisMonth.used) + '</div></div>' +
+    '</div>' +
+    (thisMonth.collected > 0 ? '<div class="flex g4" style="margin-top:8px;font-size:11.5px;color:var(--ink-soft)">' +
+      '<div>నగదు Cash: <span class="mono" style="font-weight:600;color:var(--ink)">₹' + formatINR(thisMonth.methodTotals.cash) + '</span></div>' +
+      '<div>PhonePe: <span class="mono" style="font-weight:600;color:var(--ink)">₹' + formatINR(thisMonth.methodTotals.phonepe) + '</span></div>' +
+    '</div>' : '') +
+  '</div>';
+
+  if (groupStats.length > 0) {
+    html += '<div>' + biLabel('గ్రూపుల వారీగా (ఈ నెల)', 'By group, this month') + '<div class="grid2" style="margin-top:8px">' +
+      groupStats.map(function (g) {
+        var status = g.total === 0 ? 'సభ్యులు లేరు' : (g.paidCount + ' / ' + g.total + ' కట్టారు');
+        return '<div class="card" style="padding:14px">' +
+          '<div style="font-size:13.5px;font-weight:600">' + esc(g.name) + '</div>' +
+          '<div style="font-size:11.5px;color:var(--ink-soft);margin-top:2px">' + esc(status) + '</div>' +
+          '<div class="mono" style="font-size:13px;font-weight:600;margin-top:4px">₹' + formatINR(g.collected) + '</div></div>';
+      }).join('') + '</div></div>';
+  }
+
+  if (recent.length > 0) {
+    html += '<div>' + biLabel('ఇటీవలి వినియోగం', 'Recent usage') + '<div class="card rows" style="margin-top:8px">' +
+      recent.map(function (e) {
+        return '<div class="flex items-center justify-between row-pad"><div><div style="font-size:13px;font-weight:600">' + esc(e.description) + '</div>' +
+          '<div class="mono" style="font-size:11px;color:var(--ink-soft)">' + esc(e.date) + '</div></div>' +
+          '<div class="mono" style="font-size:13px;font-weight:600;color:var(--red)">₹' + formatINR(e.amount) + '</div></div>';
+      }).join('') + '</div></div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+/* =========================================================
+   Payments tab
+   ========================================================= */
+
+function renderWinnerSection(group) {
+  var key = winnerKey(state.selectedMonth, group.id);
+  var w = state.winners[key];
+  var isEditing = state.editingWinnerKey === key;
+  var html = '<div class="card" style="padding:14px;border-left:4px solid var(--brass)">';
+
+  if (isEditing) {
+    html += biLabel('ఈ నెల విజేత', "This month's winner") + '<div class="stack" style="margin-top:10px;gap:10px">';
+    html += '<select data-scope="winner-member-select" data-group="' + group.id + '"><option value="">-- సభ్యుడిని ఎంచుకోండి / Choose member --</option>' +
+      group.members.map(function (m) {
+        var sel = state.winnerMemberId === m.id ? ' selected' : '';
+        return '<option value="' + m.id + '"' + sel + '>' + esc(m.name) + ' (సీటు ' + m.seatNo + ')</option>';
+      }).join('') + '</select>';
+    html += '<div style="max-width:160px"><div class="field-label">మొత్తం / Amount</div><input type="number" class="mono" data-scope="winner-amount" value="' + esc(state.winnerAmount) + '"></div>';
+    html += '<div class="flex g2 justify-end items-center">';
+    if (w) html += '<button class="btn-ghost" style="color:var(--red)" data-action="delete-winner" data-group-id="' + group.id + '">తీసివేయి / Remove</button>';
+    html += '<button class="btn-ghost" data-action="cancel-edit-winner">రద్దు / Cancel</button>' +
+      '<button class="btn-primary" data-action="save-winner" data-group-id="' + group.id + '">సేవ్ / Save</button></div>';
+    html += '</div>';
+  } else if (w) {
+    var member = group.members.find(function (m) { return m.id === w.memberId; });
+    html += '<div class="flex items-center justify-between">' +
+      '<div>' + biLabel('ఈ నెల విజేత', "This month's winner") +
+        '<div style="font-size:14.5px;font-weight:600;margin-top:4px">' + esc(member ? member.name : '—') + (member ? ' <span class="seat-note">(సీటు ' + member.seatNo + ')</span>' : '') + '</div>' +
+        '<div class="mono" style="font-size:13px;color:var(--brass);font-weight:600;margin-top:2px">₹' + formatINR(w.amount) + '</div>' +
+      '</div>' +
+      '<button class="icon-btn" data-action="start-edit-winner" data-group-id="' + group.id + '">' + icon('pencil', 14) + '</button>' +
+    '</div>';
+  } else {
+    html += biLabel('ఈ నెల విజేత', "This month's winner") +
+      '<button class="btn-dashed" style="margin-top:8px" data-action="start-edit-winner" data-group-id="' + group.id + '">' + icon('plus', 14) + ' విజేతను ఎంచుకోండి / Select winner</button>';
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderWinnerHistory(group) {
+  var entries = [];
+  for (var k in state.winners) {
+    var parts = k.split('::');
+    if (parts[1] === group.id) {
+      var member = group.members.find(function (m) { return m.id === state.winners[k].memberId; });
+      entries.push({ monthKey: parts[0], name: member ? member.name : '—', seat: member ? member.seatNo : '', amount: state.winners[k].amount });
+    }
+  }
+  if (entries.length === 0) return '';
+  entries.sort(function (a, b) { return b.monthKey.localeCompare(a.monthKey); });
+  var html = '<div style="margin-top:16px">' + biLabel('విజేతల చరిత్ర', 'Winners so far') + '<div class="card rows" style="margin-top:8px">';
+  html += entries.map(function (e) {
+    var mp = formatMonthParts(e.monthKey);
+    return '<div class="flex items-center justify-between row-pad"><div><div style="font-size:13px;font-weight:600">' + esc(e.name) + (e.seat ? ' <span class="seat-note">(సీటు ' + e.seat + ')</span>' : '') + '</div>' +
+      '<div class="mono seat-note">' + esc(mp.en) + '</div></div>' +
+      '<div class="mono" style="font-size:13px;font-weight:600;color:var(--brass)">₹' + formatINR(e.amount) + '</div></div>';
+  }).join('') + '</div></div>';
+  return html;
+}
+
+function renderPayments() {
+  var groups = state.groups;
+  if (groups.length === 0) {
+    return '<div class="container" style="padding-top:4px;padding-bottom:32px">' +
+      emptyState('గ్రూపులు లేవు', 'No groups yet', 'సభ్యులు ట్యాబ్‌లో గ్రూప్ జోడించండి / Add a group in the Members tab') + '</div>';
+  }
+  var group = groups.find(function (g) { return g.id === state.selectedGroupId; }) || groups[0];
+
+  var chips = '<div class="chip-scroll">' + groups.map(function (g) {
+    return '<button class="group-chip' + (g.id === group.id ? ' active' : '') + '" data-action="select-group" data-group-id="' + g.id + '">' + esc(g.name) + '</button>';
+  }).join('') + '</div>';
+
+  var body;
+  if (group.members.length === 0) {
+    body = emptyState('ఈ గ్రూప్‌లో సభ్యులు లేరు', 'No members in this group yet', 'సభ్యులు ట్యాబ్‌లో జోడించండి / Add members in the Members tab');
+  } else {
+    var collected = 0, expected = 0;
+    var methodTotals = { cash: 0, phonepe: 0 };
+    var rows = group.members.map(function (m) {
+      var rec = state.payments[paymentKey(state.selectedMonth, group.id, m.id)];
+      var isPaid = !!(rec && rec.paid);
+      expected += Number(m.monthlyAmount || 0);
+      if (isPaid) {
+        collected += Number(rec.amount || 0);
+        var mth = rec.method === 'phonepe' ? 'phonepe' : 'cash';
+        methodTotals[mth] += Number(rec.amount || 0);
+      }
+      var isEditing = state.editingPaymentId === m.id;
+      var amountShown = isPaid ? rec.amount : m.monthlyAmount;
+      var won = hasWon(group.id, m.id);
+      var methodLabel = isPaid ? (PAYMENT_METHODS.find(function (pm) { return pm.id === (rec.method || 'cash'); }) || PAYMENT_METHODS[0]).te : '';
+      var editBtn = isPaid ? '<button class="icon-btn" data-action="' + (isEditing ? 'cancel-edit-payment' : 'start-edit-payment') + '" data-group-id="' + group.id + '" data-member-id="' + m.id + '" data-amount="' + rec.amount + '" data-date="' + rec.paidDate + '" data-method="' + (rec.method || 'cash') + '">' + icon('pencil', 14) + '</button>' : '';
+      var rightControl = isPaid ?
+        '<button data-action="toggle-payment" data-group-id="' + group.id + '" data-member-id="' + m.id + '"><span class="pill paid mono">కట్టారు / Paid</span></button>' :
+        '<div class="flex g1">' + PAYMENT_METHODS.map(function (pm) {
+          return '<button class="method-btn" data-action="mark-paid-method" data-group-id="' + group.id + '" data-member-id="' + m.id + '" data-method="' + pm.id + '">' + esc(pm.te) + '</button>';
+        }).join('') + '</div>';
+      var row = '<div class="row-pad">' +
+        '<div class="flex items-center justify-between g3 wrap">' +
+          '<div style="min-width:0"><div style="font-size:14.5px;font-weight:600">' + esc(m.name) + '</div>' +
+          '<div class="mono seat-note">సీటు ' + m.seatNo + ' · ₹' + formatINR(amountShown) + (isPaid ? ' · ' + esc(methodLabel) : '') + (won ? ' · <span style="color:var(--brass);font-weight:600">గెలిచారు ✓</span>' : '') + '</div></div>' +
+          '<div class="flex items-center g2">' + editBtn + rightControl + '</div>' +
+        '</div>';
+      if (isEditing) {
+        row += '<div class="stack" style="gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">' +
+          '<div class="flex items-end g2 wrap">' +
+            '<div><div class="field-label">మొత్తం / Amount</div><input type="number" class="mono" style="width:100px" data-scope="edit-amount" value="' + esc(state.editAmount) + '"></div>' +
+            '<div><div class="field-label">తేదీ / Date</div><input type="date" class="mono" data-scope="edit-date" value="' + esc(state.editDate) + '"></div>' +
+          '</div>' +
+          '<div><div class="field-label">ఎలా కట్టారు / Paid via</div><div class="flex g2">' + PAYMENT_METHODS.map(function (pm) {
+            return '<button class="cat-btn' + (state.editMethod === pm.id ? ' active' : '') + '" data-action="set-edit-method" data-method="' + pm.id + '">' + esc(pm.te) + '</button>';
+          }).join('') + '</div></div>' +
+          '<div class="flex g2 justify-end">' +
+            '<button class="btn-primary" data-action="save-edit-payment" data-group-id="' + group.id + '" data-member-id="' + m.id + '">సేవ్ / Save</button>' +
+            '<button class="btn-ghost" data-action="cancel-edit-payment">రద్దు / Cancel</button>' +
+          '</div>' +
+        '</div>';
+      }
+      row += '</div>';
+      return row;
+    }).join('');
+    body = '<div class="card rows">' + rows + '</div>' +
+      '<div class="card row-pad" style="margin-top:16px">' +
+        '<div class="flex items-center justify-between">' +
+          biLabel('ఈ నెల వసూలు', 'Collected this month') +
+          '<div class="mono" style="font-size:16px;font-weight:700;color:var(--navy)">₹' + formatINR(collected) + ' <span style="font-size:12px;color:var(--ink-soft);font-weight:500">/ ₹' + formatINR(expected) + '</span></div>' +
+        '</div>' +
+        (collected > 0 ? '<div class="flex g4" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">' +
+          '<div style="font-size:11.5px;color:var(--ink-soft)">నగదు Cash: <span class="mono" style="font-weight:600;color:var(--ink)">₹' + formatINR(methodTotals.cash) + '</span></div>' +
+          '<div style="font-size:11.5px;color:var(--ink-soft)">PhonePe: <span class="mono" style="font-weight:600;color:var(--ink)">₹' + formatINR(methodTotals.phonepe) + '</span></div>' +
+        '</div>' : '') +
+      '</div>' + renderWinnerHistory(group);
+  }
+
+  return '<div class="container stack" style="padding-top:4px;padding-bottom:32px">' + chips + renderWinnerSection(group) + body + '</div>';
+}
+
+/* =========================================================
+   Reminders tab
+   ========================================================= */
+
+function renderReminders() {
+  var unpaid = computeUnpaid(state.selectedMonth);
+  var monthParts = formatMonthParts(state.selectedMonth);
+  var today = new Date();
+  var currentRealMonthKey = monthKeyOf(today);
+  var comparison = state.selectedMonth === currentRealMonthKey ? 'current' : (monthKeyToDate(state.selectedMonth) < monthKeyToDate(currentRealMonthKey) ? 'past' : 'future');
+  var reminderDue = comparison === 'past' || (comparison === 'current' && today.getDate() >= 15);
+
+  if (unpaid.length === 0) {
+    return '<div class="container" style="padding-top:4px;padding-bottom:32px">' + emptyState('అందరూ కట్టేశారు!', 'Everyone has paid this month.', '') + '</div>';
+  }
+
+  var html = '<div class="container stack" style="padding-top:4px;padding-bottom:32px">';
+  html += '<div class="card row-pad" style="font-size:12.5px;color:var(--ink-soft);line-height:1.5">మెసేజ్ కాపీ చేసి మీరే వాట్సాప్‌లో పంపుకోవాలి — యాప్ ఆటోమేటిక్‌గా పంపదు.<br>Copy the message and send it yourself on WhatsApp — the app doesn\'t send it automatically.</div>';
+  if (!reminderDue && comparison === 'current') {
+    html += '<div style="font-size:12px;color:var(--brass)">సాధారణంగా 15వ తేదీ తర్వాత రిమైండర్లు పంపిస్తారు / Reminders are usually sent after the 15th</div>';
+  }
+  html += unpaid.map(function (m) {
+    var isCopied = state.copiedId === m.id;
+    var showDue = comparison === 'past' || reminderDue;
+    return '<div class="card flex items-center justify-between g3 row-pad">' +
+      '<div style="min-width:0"><div style="font-size:14.5px;font-weight:600">' + esc(m.name) + '</div>' +
+      '<div class="mono" style="font-size:12px;color:var(--ink-soft)">' + esc(m.groupName) + ' · సీటు ' + m.seatNo + ' · ₹' + formatINR(m.monthlyAmount) + '</div>' +
+      (showDue ? '<span style="font-size:10.5px;font-weight:700;color:var(--red)">రిమైండర్ డ్యూ / Reminder due</span>' : '') + '</div>' +
+      '<button data-action="copy-reminder" data-member-id="' + m.id + '" data-group-id="' + m.groupId + '" style="flex-shrink:0;background:' + (isCopied ? 'var(--green)' : 'var(--navy)') + ';color:#fff;padding:8px 13px;border-radius:3px;font-size:12.5px;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px">' +
+        icon(isCopied ? 'check' : 'copy', 13) + (isCopied ? 'కాపీ అయ్యింది' : 'కాపీ') + '</button>' +
+    '</div>';
+  }).join('');
+  html += '</div>';
+  return html;
+}
+
+/* =========================================================
+   Usage tab
+   ========================================================= */
+
+function renderUsage() {
+  var totals = computeTotals();
+  var sorted = state.usageLog.slice().sort(function (a, b) { return b.date.localeCompare(a.date); });
+
+  var html = '<div class="container stack" style="padding-top:4px;padding-bottom:32px">';
+  html += '<div class="card flex items-center justify-between row-pad">' + biLabel('మొత్తం వినియోగం', 'Total used') +
+    '<div class="mono" style="font-size:16px;font-weight:700;color:var(--red)">₹' + formatINR(totals.totalUsed) + '</div></div>';
+
+  html += '<button class="btn-primary w-full" data-action="toggle-usage-form">' + icon('plus', 15) + ' కొత్త ఎంట్రీ జోడించండి / Add entry</button>';
+
+  if (state.usageFormOpen) {
+    var f = state.usageForm;
+    html += '<div class="card stack" style="padding:16px">' +
+      '<div><div class="field-label">వివరణ / Description</div><input type="text" data-scope="usage-desc" value="' + esc(f.desc) + '" placeholder="ఉదా: మోహన్‌కి రౌండ్ చెల్లింపు"></div>' +
+      '<div class="flex g3">' +
+        '<div style="flex:1"><div class="field-label">మొత్తం / Amount</div><input type="number" class="mono" data-scope="usage-amount" value="' + esc(f.amount) + '"></div>' +
+        '<div style="flex:1"><div class="field-label">తేదీ / Date</div><input type="date" class="mono" data-scope="usage-date" value="' + esc(f.date) + '"></div>' +
+      '</div>' +
+      '<div><div class="field-label">రకం / Type</div><div class="flex g2 wrap">' +
+        USAGE_CATEGORIES.map(function (c) { return '<button class="cat-btn' + (f.category === c.id ? ' active' : '') + '" data-action="set-usage-category" data-cat="' + c.id + '">' + esc(c.te) + '</button>'; }).join('') +
+      '</div></div>' +
+      '<div class="flex g2 justify-end"><button class="btn-ghost" data-action="cancel-usage-form">రద్దు / Cancel</button><button class="btn-primary" data-action="submit-usage">సేవ్ / Save</button></div>' +
+    '</div>';
+  }
+
+  if (sorted.length === 0) {
+    html += emptyState('ఇంకా ఎంట్రీలు లేవు', 'No entries yet', '');
+  } else {
+    html += '<div class="card rows">' + sorted.map(function (e) {
+      var cat = USAGE_CATEGORIES.find(function (c) { return c.id === e.category; }) || USAGE_CATEGORIES[3];
+      var armed = state.confirmDeleteUsageId === e.id;
+      var delBtn = armed ?
+        '<div class="flex g2"><button class="icon-btn" style="color:var(--red)" data-action="delete-usage" data-id="' + e.id + '">' + icon('check', 15) + '</button><button class="icon-btn" data-action="cancel-delete-usage">' + icon('x', 15) + '</button></div>' :
+        '<button class="icon-btn" data-action="confirm-delete-usage" data-id="' + e.id + '">' + icon('trash', 14) + '</button>';
+      return '<div class="flex items-center justify-between g3 row-pad">' +
+        '<div style="min-width:0"><div style="font-size:14px;font-weight:600">' + esc(e.description) + '</div>' +
+        '<div class="mono" style="font-size:11.5px;color:var(--ink-soft)">' + esc(e.date) + ' · ' + esc(cat.te) + '</div></div>' +
+        '<div class="flex items-center g3"><div class="mono" style="font-size:14px;font-weight:700;color:var(--red)">₹' + formatINR(e.amount) + '</div>' + delBtn + '</div>' +
+      '</div>';
+    }).join('') + '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+/* =========================================================
+   Members tab
+   ========================================================= */
+
+function renderMembers() {
+  var html = '<div class="container stack" style="padding-top:4px;padding-bottom:32px">';
+
+  html += state.groups.map(function (g) {
+    var isOpen = state.expandedGroupId === g.id;
+    var f = ensureMemberForm(g.id);
+    var inner = '';
+    if (isOpen) {
+      inner += '<div style="border-top:1px solid var(--line)">';
+      if (g.note) inner += '<div class="seat-note" style="padding:8px 14px 0">' + esc(g.note) + '</div>';
+
+      var isEditingChit = state.editingChitAmountGroupId === g.id;
+      inner += '<div style="padding:10px 14px;border-bottom:1px solid var(--line)">';
+      if (isEditingChit) {
+        inner += '<div class="flex items-end g2 wrap">' +
+          '<div><div class="field-label">చిటీ మొత్తం / Chit amount (ప్రతి నెలా విజేతకి ఇచ్చే స్థిర మొత్తం)</div><input type="number" class="mono" style="width:140px" data-scope="chit-amount-input" value="' + esc(state.chitAmountInput) + '"></div>' +
+          '<button class="btn-primary" data-action="save-chit-amount" data-group-id="' + g.id + '">సేవ్</button>' +
+          '<button class="btn-ghost" data-action="cancel-edit-chit-amount">రద్దు</button>' +
+        '</div>';
+      } else {
+        inner += '<div class="flex items-center justify-between">' +
+          '<div>' + biLabel('చిటీ మొత్తం', 'Chit amount (auto-fills winner payouts)') +
+            '<div class="mono" style="font-size:14px;font-weight:600;margin-top:3px;color:var(--brass)">' + (g.chitAmount ? '₹' + formatINR(g.chitAmount) : 'సెట్ చేయలేదు / not set') + '</div></div>' +
+          '<button class="icon-btn" data-action="start-edit-chit-amount" data-group-id="' + g.id + '">' + icon('pencil', 14) + '</button>' +
+        '</div>';
+      }
+      inner += '</div>';
+
+      inner += '<div class="rows">' + g.members.map(function (m) {
+        var armed = state.confirmDeleteMember && state.confirmDeleteMember.groupId === g.id && state.confirmDeleteMember.memberId === m.id;
+        var isEditingM = state.editingMemberId === m.id;
+        var needsAmount = !m.monthlyAmount;
+        var right;
+        if (armed) {
+          right = '<div class="flex items-center g2"><button class="btn-ghost" style="color:var(--red);font-weight:600" data-action="delete-member" data-group-id="' + g.id + '" data-member-id="' + m.id + '">తీసివేయి</button><button class="btn-ghost" data-action="cancel-delete-member">రద్దు</button></div>';
+        } else {
+          right = '<div class="flex items-center g2">' +
+            '<button class="icon-btn" data-action="' + (isEditingM ? 'cancel-edit-member' : 'start-edit-member') + '" data-group-id="' + g.id + '" data-member-id="' + m.id + '" data-name="' + esc(m.name) + '" data-phone="' + esc(m.phone || '') + '" data-amount="' + m.monthlyAmount + '">' + icon('pencil', 13.5) + '</button>' +
+            '<button class="icon-btn" data-action="confirm-delete-member" data-group-id="' + g.id + '" data-member-id="' + m.id + '">' + icon('trash', 13.5) + '</button>' +
+          '</div>';
+        }
+        var row = '<div class="row-pad">' +
+          '<div class="flex items-center justify-between">' +
+          '<div><div style="font-size:13.5px;font-weight:600">' + esc(m.name) + '</div>' +
+          '<div class="mono seat-note">సీటు ' + m.seatNo + ' · ' + (needsAmount ? '<span style="color:var(--red);font-weight:600">మొత్తం సెట్ చేయలేదు / set amount</span>' : '₹' + formatINR(m.monthlyAmount)) + (m.phone ? ' · ' + esc(m.phone) : '') + '</div></div>' + right +
+          '</div>';
+        if (isEditingM) {
+          row += '<div class="flex items-end g2 wrap" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">' +
+            '<div style="flex:1;min-width:120px"><div class="field-label">పేరు / Name</div><input type="text" data-scope="edit-member-name" value="' + esc(state.editMemberName) + '"></div>' +
+            '<div><div class="field-label">ఫోన్ / Phone</div><input type="tel" data-scope="edit-member-phone" style="width:120px" value="' + esc(state.editMemberPhone) + '"></div>' +
+            '<div><div class="field-label">మొత్తం / Amount</div><input type="number" class="mono" data-scope="edit-member-amount" style="width:100px" value="' + esc(state.editMemberAmount) + '"></div>' +
+            '<button class="btn-primary" data-action="save-edit-member" data-group-id="' + g.id + '" data-member-id="' + m.id + '">సేవ్ / Save</button>' +
+            '<button class="btn-ghost" data-action="cancel-edit-member">రద్దు / Cancel</button>' +
+          '</div>';
+        }
+        row += '</div>';
+        return row;
+      }).join('') + '</div>';
+
+      if (f.show) {
+        inner += '<div class="stack" style="padding:14px">' +
+          '<input type="text" placeholder="పేరు / Name" data-scope="member-name" data-group="' + g.id + '" value="' + esc(f.name) + '">' +
+          '<div class="flex g2">' +
+            '<input type="tel" placeholder="ఫోన్ (ఐచ్ఛికం) / Phone (optional)" data-scope="member-phone" data-group="' + g.id + '" style="flex:1" value="' + esc(f.phone) + '">' +
+            '<input type="number" class="mono" placeholder="మొత్తం / Amount" data-scope="member-amount" data-group="' + g.id + '" style="width:112px" value="' + esc(f.amount) + '">' +
+          '</div>' +
+          '<div class="flex g2 justify-end"><button class="btn-ghost" data-action="cancel-add-member" data-group-id="' + g.id + '">రద్దు</button><button class="btn-primary" data-action="submit-add-member" data-group-id="' + g.id + '">జోడించు</button></div>' +
+        '</div>';
+      } else {
+        inner += '<button class="w-full flex items-center justify-center g2" style="padding:11px 14px;font-size:12.5px;color:var(--navy);font-weight:600;background:none;border:none;cursor:pointer" data-action="toggle-member-form" data-group-id="' + g.id + '">' + icon('plus', 13.5) + ' సభ్యుడిని జోడించండి / Add member</button>';
+      }
+      inner += '</div>';
+    }
+    return '<div class="card" style="overflow:hidden">' +
+      '<button class="w-full flex items-center justify-between" style="padding:12px 14px;background:none;border:none;cursor:pointer;color:var(--ink)" data-action="toggle-group-expand" data-group-id="' + g.id + '">' +
+        '<div class="flex items-center g2"><span class="display" style="font-size:15.5px;font-weight:600">' + esc(g.name) + '</span><span style="font-size:12px;color:var(--ink-soft)">(' + g.members.length + ')</span></div>' +
+        '<span style="color:var(--ink-soft);transform:' + (isOpen ? 'rotate(180deg)' : 'none') + '">' + icon('chevronDown', 16) + '</span>' +
+      '</button>' + inner +
+    '</div>';
+  }).join('');
+
+  if (state.showAddGroup) {
+    html += '<div class="card flex g2 items-end" style="padding:14px">' +
+      '<div style="flex:1"><div class="field-label">గ్రూప్ పేరు / Group name</div><input type="text" data-scope="new-group-name" value="' + esc(state.newGroupName) + '"></div>' +
+      '<button class="btn-primary" data-action="submit-add-group">జోడించు</button>' +
+      '<button class="btn-ghost" data-action="cancel-add-group">రద్దు</button>' +
+    '</div>';
+  } else {
+    html += '<button class="btn-dashed" data-action="toggle-add-group-form">' + icon('plus', 15) + ' కొత్త గ్రూప్ / Add group</button>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+/* =========================================================
+   Main render
+   ========================================================= */
+
+function renderActiveTab() {
+  switch (state.activeTab) {
+    case 'overview': return renderOverview();
+    case 'payments': return renderPayments();
+    case 'reminders': return renderReminders();
+    case 'usage': return renderUsage();
+    case 'members': return renderMembers();
+    default: return '';
+  }
+}
+
+function render() {
+  var app = document.getElementById('app');
+  if (!state.loaded) {
+    app.innerHTML = '<div style="min-height:360px;display:flex;align-items:center;justify-content:center">' +
+      '<div class="flex-col items-center g3" style="color:var(--ink-soft)">' + icon('loader', 22, 'spin') + '<div style="font-size:13px">లోడ్ అవుతోంది... / Loading...</div></div></div>';
+    return;
+  }
+  var html = renderHeader() + renderTabBar();
+  if (state.activeTab !== 'members') html += renderMonthSelector();
+  if (state.showInstallBanner) {
+    html += '<div class="install-banner"><span>మీ ఫోన్‌లో హోమ్ స్క్రీన్‌కు యాడ్ చేయండి / Add this to your home screen</span><button data-action="trigger-install">ఇన్‌స్టాల్ / Install</button></div>';
+  }
+  html += '<main>' + renderActiveTab() + '</main>';
+  if (state.saveErrorMsg) html += '<div class="save-toast">' + esc(state.saveErrorMsg) + '</div>';
+  app.innerHTML = html;
+}
+
+/* =========================================================
+   Actions
+   ========================================================= */
+
+function markPaid(groupId, memberId, amount, date, method) {
+  var key = paymentKey(state.selectedMonth, groupId, memberId);
+  var existing = state.payments[key];
+  state.payments[key] = { paid: true, amount: Number(amount), paidDate: date, method: method || (existing && existing.method) || 'cash' };
+  persistPayments();
+}
+function markUnpaid(groupId, memberId) {
+  var key = paymentKey(state.selectedMonth, groupId, memberId);
+  delete state.payments[key];
+  persistPayments();
+}
+
+function exportToExcel() {
+  if (typeof XLSX === 'undefined') {
+    state.saveErrorMsg = 'Excel లైబ్రరీ లోడ్ కాలేదు — ఒకసారి ఇంటర్నెట్‌తో తెరిచి మళ్ళీ ప్రయత్నించండి / Excel library not loaded — open once online and try again';
+    render();
+    setTimeout(function () { state.saveErrorMsg = ''; render(); }, 3500);
+    return;
+  }
+
+  var wb = XLSX.utils.book_new();
+  var totals = computeTotals();
+
+  var summaryRows = [
+    ['మృదుల చిట్టీ ఫండ్ · Mrudhula Chitti Fund'],
+    ['Exported', todayISO()],
+    [],
+    ['మొత్తం వసూలు · Total collected', totals.totalCollected],
+    ['మొత్తం వినియోగం · Total used', totals.totalUsed],
+    ['నిలవ · Balance in hand', totals.balance],
+    [],
+    ['గ్రూప్ · Group', 'చిటీ మొత్తం · Chit amount', 'సభ్యులు · Members', 'ఈ నెల వసూలు · Collected this month'],
+  ];
+  computeGroupStats(state.selectedMonth).forEach(function (g) {
+    var gFull = state.groups.find(function (gr) { return gr.id === g.id; });
+    summaryRows.push([g.name, (gFull && gFull.chitAmount) ? gFull.chitAmount : '', g.paidCount + ' / ' + g.total, g.collected]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryRows), 'Summary సారాంశం');
+
+  state.groups.forEach(function (g) {
+    var monthSet = {};
+    Object.keys(state.payments).forEach(function (k) {
+      var parts = k.split('::');
+      if (parts[1] === g.id) monthSet[parts[0]] = true;
+    });
+    monthSet[state.selectedMonth] = true;
+    var months = Object.keys(monthSet).sort();
+
+    var header = ['సీటు Seat', 'పేరు Name', 'ఫోన్ Phone', 'నెలవారీ మొత్తం Monthly Amount'].concat(
+      months.map(function (mk) { return formatMonthParts(mk).en; })
+    );
+    var rows = [header];
+    g.members.forEach(function (m) {
+      var row = [m.seatNo, m.name, m.phone || '', m.monthlyAmount];
+      months.forEach(function (mk) {
+        var rec = state.payments[paymentKey(mk, g.id, m.id)];
+        row.push(rec && rec.paid ? rec.amount : '');
+      });
+      rows.push(row);
+    });
+    var sheetName = (g.name + '').substring(0, 31);
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), sheetName);
+  });
+
+  var usageHeader = ['తేదీ Date', 'రకం Category', 'వివరణ Description', 'మొత్తం Amount'];
+  var usageBody = state.usageLog.slice().sort(function (a, b) { return a.date.localeCompare(b.date); }).map(function (e) {
+    var cat = USAGE_CATEGORIES.find(function (c) { return c.id === e.category; });
+    return [e.date, cat ? cat.en : e.category, e.description, e.amount];
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([usageHeader].concat(usageBody)), 'Usage వినియోగం');
+
+  var winnerHeader = ['నెల Month', 'గ్రూప్ Group', 'సీటు Seat', 'విజేత Winner', 'మొత్తం Amount'];
+  var winnerRows = [];
+  for (var wk in state.winners) {
+    var wparts = wk.split('::');
+    var wg = state.groups.find(function (g) { return g.id === wparts[1]; });
+    var wm = wg && wg.members.find(function (m) { return m.id === state.winners[wk].memberId; });
+    winnerRows.push([formatMonthParts(wparts[0]).en, wg ? wg.name : wparts[1], wm ? wm.seatNo : '', wm ? wm.name : '—', state.winners[wk].amount]);
+  }
+  winnerRows.sort(function (a, b) { return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0; });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([winnerHeader].concat(winnerRows)), 'Winners విజేతలు');
+
+  XLSX.writeFile(wb, 'chitti-fund-' + todayISO() + '.xlsx');
+}
+
+function handleClick(e) {
+  var el = e.target.closest('[data-action]');
+  if (!el) return;
+  var action = el.dataset.action;
+  var groupId = el.dataset.groupId;
+  var memberId = el.dataset.memberId;
+
+  switch (action) {
+    case 'export-excel':
+      exportToExcel();
+      return; // no state mutation, skip the render() at the bottom
+    case 'set-tab':
+      state.activeTab = el.dataset.tab;
+      break;
+    case 'prev-month':
+      state.selectedMonth = shiftMonth(state.selectedMonth, -1);
+      break;
+    case 'next-month':
+      state.selectedMonth = shiftMonth(state.selectedMonth, 1);
+      break;
+    case 'select-group':
+      state.selectedGroupId = groupId;
+      break;
+    case 'toggle-payment': {
+      var rec = state.payments[paymentKey(state.selectedMonth, groupId, memberId)];
+      if (rec && rec.paid) markUnpaid(groupId, memberId);
+      break;
+    }
+    case 'mark-paid-method': {
+      var group = state.groups.find(function (g) { return g.id === groupId; });
+      var member = group && group.members.find(function (m) { return m.id === memberId; });
+      if (member) markPaid(groupId, memberId, member.monthlyAmount, todayISO(), el.dataset.method);
+      break;
+    }
+    case 'start-edit-payment':
+      state.editingPaymentId = memberId;
+      state.editAmount = String(el.dataset.amount || '');
+      state.editDate = el.dataset.date || todayISO();
+      state.editMethod = el.dataset.method || 'cash';
+      break;
+    case 'cancel-edit-payment':
+      state.editingPaymentId = null;
+      break;
+    case 'set-edit-method':
+      state.editMethod = el.dataset.method;
+      break;
+    case 'save-edit-payment':
+      markPaid(groupId, memberId, state.editAmount, state.editDate, state.editMethod);
+      state.editingPaymentId = null;
+      break;
+    case 'copy-reminder': {
+      var g2 = state.groups.find(function (g) { return g.id === groupId; });
+      var m2 = g2 && g2.members.find(function (m) { return m.id === memberId; });
+      if (m2) {
+        var msg = buildReminderMessage(m2, m2.monthlyAmount, formatMonthParts(state.selectedMonth), g2.name);
+        copyText(msg);
+        state.copiedId = memberId;
+        setTimeout(function () { if (state.copiedId === memberId) { state.copiedId = null; render(); } }, 2000);
+      }
+      break;
+    }
+    case 'toggle-usage-form':
+      state.usageFormOpen = !state.usageFormOpen;
+      break;
+    case 'cancel-usage-form':
+      state.usageFormOpen = false;
+      state.usageForm = { desc: '', amount: '', category: USAGE_CATEGORIES[0].id, date: todayISO() };
+      break;
+    case 'set-usage-category':
+      state.usageForm.category = el.dataset.cat;
+      break;
+    case 'submit-usage': {
+      var uf = state.usageForm;
+      if (!uf.desc.trim() || !uf.amount || Number(uf.amount) <= 0) break;
+      state.usageLog.push({ id: genId(), description: uf.desc.trim(), amount: Number(uf.amount), category: uf.category, date: uf.date, monthKey: uf.date.slice(0, 7) });
+      persistUsage();
+      state.usageFormOpen = false;
+      state.usageForm = { desc: '', amount: '', category: USAGE_CATEGORIES[0].id, date: todayISO() };
+      break;
+    }
+    case 'confirm-delete-usage':
+      state.confirmDeleteUsageId = el.dataset.id;
+      break;
+    case 'cancel-delete-usage':
+      state.confirmDeleteUsageId = null;
+      break;
+    case 'delete-usage':
+      state.usageLog = state.usageLog.filter(function (e) { return e.id !== el.dataset.id; });
+      persistUsage();
+      state.confirmDeleteUsageId = null;
+      break;
+    case 'toggle-group-expand':
+      state.expandedGroupId = state.expandedGroupId === groupId ? null : groupId;
+      break;
+    case 'toggle-add-group-form':
+      state.showAddGroup = true;
+      break;
+    case 'cancel-add-group':
+      state.showAddGroup = false;
+      state.newGroupName = '';
+      break;
+    case 'submit-add-group':
+      if (!state.newGroupName.trim()) break;
+      state.groups.push({ id: genId(), name: state.newGroupName.trim(), note: '', members: [] });
+      persistGroups();
+      state.newGroupName = '';
+      state.showAddGroup = false;
+      break;
+    case 'toggle-member-form':
+      ensureMemberForm(groupId).show = true;
+      break;
+    case 'cancel-add-member':
+      state.memberForms[groupId] = { name: '', phone: '', amount: '', show: false };
+      break;
+    case 'submit-add-member': {
+      var mf = ensureMemberForm(groupId);
+      if (!mf.name.trim() || !mf.amount || Number(mf.amount) <= 0) break;
+      var grp = state.groups.find(function (g) { return g.id === groupId; });
+      var nextSeat = grp.members.reduce(function (mx, mm) { return Math.max(mx, mm.seatNo || 0); }, 0) + 1;
+      grp.members.push({ id: genId(), seatNo: nextSeat, name: mf.name.trim(), phone: mf.phone.trim(), monthlyAmount: Number(mf.amount) });
+      persistGroups();
+      state.memberForms[groupId] = { name: '', phone: '', amount: '', show: false };
+      break;
+    }
+    case 'confirm-delete-member':
+      state.confirmDeleteMember = { groupId: groupId, memberId: memberId };
+      break;
+    case 'cancel-delete-member':
+      state.confirmDeleteMember = null;
+      break;
+    case 'start-edit-member':
+      state.editingMemberId = memberId;
+      state.editMemberName = el.dataset.name || '';
+      state.editMemberPhone = el.dataset.phone || '';
+      state.editMemberAmount = el.dataset.amount || '';
+      break;
+    case 'cancel-edit-member':
+      state.editingMemberId = null;
+      break;
+    case 'save-edit-member': {
+      if (!state.editMemberName.trim() || !state.editMemberAmount || Number(state.editMemberAmount) <= 0) break;
+      var geditGrp = state.groups.find(function (g) { return g.id === groupId; });
+      var editMember = geditGrp && geditGrp.members.find(function (m) { return m.id === memberId; });
+      if (editMember) {
+        editMember.name = state.editMemberName.trim();
+        editMember.phone = state.editMemberPhone.trim();
+        editMember.monthlyAmount = Number(state.editMemberAmount);
+        persistGroups();
+      }
+      state.editingMemberId = null;
+      break;
+    }
+    case 'delete-member': {
+      var gg = state.groups.find(function (g) { return g.id === groupId; });
+      if (gg) gg.members = gg.members.filter(function (m) { return m.id !== memberId; });
+      persistGroups();
+      state.confirmDeleteMember = null;
+      break;
+    }
+    case 'start-edit-winner': {
+      var wk = winnerKey(state.selectedMonth, groupId);
+      state.editingWinnerKey = wk;
+      var existingW = state.winners[wk];
+      var wGroupForFill = state.groups.find(function (g) { return g.id === groupId; });
+      state.winnerMemberId = existingW ? existingW.memberId : '';
+      state.winnerAmount = existingW ? String(existingW.amount) : ((wGroupForFill && wGroupForFill.chitAmount) ? String(wGroupForFill.chitAmount) : '');
+      break;
+    }
+    case 'cancel-edit-winner':
+      state.editingWinnerKey = null;
+      break;
+    case 'save-winner': {
+      if (!state.winnerMemberId || !state.winnerAmount || Number(state.winnerAmount) <= 0) break;
+      var wk2 = winnerKey(state.selectedMonth, groupId);
+      var wGroup = state.groups.find(function (g) { return g.id === groupId; });
+      var wMember = wGroup && wGroup.members.find(function (m) { return m.id === state.winnerMemberId; });
+      state.winners[wk2] = { memberId: state.winnerMemberId, amount: Number(state.winnerAmount) };
+      persistWinners();
+      // keep a matching usage-log entry in sync, so the payout shows in వినియోగం/balance too
+      var desc = (wMember ? wMember.name : '') + ' గారికి ' + (wGroup ? wGroup.name : '') + ' చిటీ' + (wMember ? ' (సీటు ' + wMember.seatNo + ')' : '');
+      var linked = state.usageLog.find(function (en) { return en.linkedWinnerKey === wk2; });
+      if (linked) {
+        linked.amount = Number(state.winnerAmount);
+        linked.description = desc;
+      } else {
+        state.usageLog.push({ id: genId(), description: desc, amount: Number(state.winnerAmount), category: 'payout', date: todayISO(), monthKey: state.selectedMonth, linkedWinnerKey: wk2 });
+      }
+      persistUsage();
+      state.editingWinnerKey = null;
+      break;
+    }
+    case 'delete-winner': {
+      var wk3 = winnerKey(state.selectedMonth, groupId);
+      delete state.winners[wk3];
+      persistWinners();
+      state.usageLog = state.usageLog.filter(function (en) { return en.linkedWinnerKey !== wk3; });
+      persistUsage();
+      state.editingWinnerKey = null;
+      break;
+    }
+    case 'start-edit-chit-amount': {
+      state.editingChitAmountGroupId = groupId;
+      var gForAmt = state.groups.find(function (g) { return g.id === groupId; });
+      state.chitAmountInput = (gForAmt && gForAmt.chitAmount) ? String(gForAmt.chitAmount) : '';
+      break;
+    }
+    case 'cancel-edit-chit-amount':
+      state.editingChitAmountGroupId = null;
+      break;
+    case 'save-chit-amount': {
+      var gToSet = state.groups.find(function (g) { return g.id === groupId; });
+      if (gToSet) {
+        gToSet.chitAmount = Number(state.chitAmountInput) || 0;
+        persistGroups();
+      }
+      state.editingChitAmountGroupId = null;
+      break;
+    }
+    case 'trigger-install':
+      if (state.installEvent) {
+        state.installEvent.prompt();
+        state.installEvent.userChoice.finally(function () { state.installEvent = null; state.showInstallBanner = false; render(); });
+      }
+      break;
+  }
+  render();
+}
+
+function handleInput(e) {
+  var el = e.target;
+  var scope = el.dataset.scope;
+  if (!scope) return;
+  var val = el.value;
+  switch (scope) {
+    case 'edit-amount': state.editAmount = val; break;
+    case 'edit-date': state.editDate = val; break;
+    case 'usage-desc': state.usageForm.desc = val; break;
+    case 'usage-amount': state.usageForm.amount = val; break;
+    case 'usage-date': state.usageForm.date = val; break;
+    case 'new-group-name': state.newGroupName = val; break;
+    case 'member-name': ensureMemberForm(el.dataset.group).name = val; break;
+    case 'member-phone': ensureMemberForm(el.dataset.group).phone = val; break;
+    case 'member-amount': ensureMemberForm(el.dataset.group).amount = val; break;
+    case 'edit-member-name': state.editMemberName = val; break;
+    case 'edit-member-phone': state.editMemberPhone = val; break;
+    case 'edit-member-amount': state.editMemberAmount = val; break;
+    case 'winner-member-select': state.winnerMemberId = val; break;
+    case 'winner-amount': state.winnerAmount = val; break;
+    case 'chit-amount-input': state.chitAmountInput = val; break;
+  }
+  /* deliberately no render() here — a full innerHTML re-render on every
+     keystroke would reset input focus/cursor. state stays in sync silently
+     and is read by the next click action (Save/Submit). */
+}
+
+function copyText(text) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).catch(function () { legacyCopy(text); });
+    } else {
+      legacyCopy(text);
+    }
+  } catch (e) { legacyCopy(text); }
+}
+function legacyCopy(text) {
+  try {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  } catch (e) { /* clipboard unavailable */ }
+}
+
+/* =========================================================
+   Init
+   ========================================================= */
+
+document.getElementById('app').addEventListener('click', handleClick);
+document.getElementById('app').addEventListener('input', handleInput);
+document.getElementById('app').addEventListener('change', handleInput);
+
+loadState();
+render();
+
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault();
+  state.installEvent = e;
+  state.showInstallBanner = true;
+  render();
+});
+window.addEventListener('appinstalled', function () {
+  state.showInstallBanner = false;
+  state.installEvent = null;
+  render();
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () {
+    try { navigator.serviceWorker.register('sw.js').catch(function () {}); } catch (e) {}
+  });
+}
+</script>
+</body>
+</html>

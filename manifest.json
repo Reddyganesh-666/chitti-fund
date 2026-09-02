@@ -1,0 +1,20 @@
+{
+  "name": "మృదుల చిట్టీ ఫండ్ · Mrudhula Chitti Fund",
+  "short_name": "చిట్టీ ఫండ్",
+  "description": "Chit fund monthly collection tracker — ఎవరు కట్టారు, ఎవరు కట్టలేదు, నిధి వినియోగం, నిలవ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "id": "mrudhula-chitti-fund",
+  "display": "standalone",
+  "background_color": "#F3EDDA",
+  "theme_color": "#1E2A3A",
+  "orientation": "portrait-primary",
+  "lang": "te",
+  "dir": "ltr",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
