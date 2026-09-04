@@ -116,6 +116,21 @@
   ::-webkit-scrollbar { height:0; width:0; }
   .w-full { width:100%; }
   .seat-note { font-size:11.5px; color:var(--ink-soft); }
+
+  .modal-backdrop { position:fixed; inset:0; background:rgba(20,16,10,.55); z-index:100; display:flex; align-items:flex-end; justify-content:center; }
+  .receipt-sheet { background:var(--card); width:100%; max-width:420px; max-height:88vh; overflow-y:auto; border-radius:10px 10px 0 0; padding:20px; }
+  .receipt-line { display:flex; justify-content:space-between; gap:10px; font-size:13px; padding:4px 0; }
+  .receipt-divider { border-top:1px dashed var(--line); margin:10px 0; }
+  @media (min-width: 480px) {
+    .modal-backdrop { align-items:center; }
+    .receipt-sheet { border-radius:8px; max-height:80vh; }
+  }
+  @media print {
+    body * { visibility:hidden; }
+    #receipt-print-area, #receipt-print-area * { visibility:visible; }
+    #receipt-print-area { position:absolute; top:0; left:0; width:100%; padding:24px; }
+    .no-print { display:none !important; }
+  }
 </style>
 </head>
 <body>
@@ -624,6 +639,58 @@ function buildReminderMessage(member, amount, monthParts, groupName) {
     'Hello ' + member.name + ',\nYour ' + groupName + ' chit payment of ₹' + formatINR(amount) + ' for ' + monthParts.en + ' is still pending. Please pay at the earliest. Thank you.';
 }
 
+function receiptNumber(paidDate, groupId, seatNo) {
+  var compact = (paidDate || todayISO()).replace(/-/g, '');
+  return compact + '-' + String(seatNo || 0).padStart(2, '0');
+}
+
+function numberToWordsIndian(num) {
+  num = Math.round(Number(num) || 0);
+  if (num === 0) return 'Zero';
+  var ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  var tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  function twoDigits(n) {
+    if (n < 20) return ones[n];
+    return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + ones[n % 10] : '');
+  }
+  function threeDigits(n) {
+    var h = Math.floor(n / 100), r = n % 100, s = '';
+    if (h) s += ones[h] + ' Hundred';
+    if (h && r) s += ' ';
+    if (r) s += twoDigits(r);
+    return s;
+  }
+
+  var crore = Math.floor(num / 10000000); num %= 10000000;
+  var lakh = Math.floor(num / 100000); num %= 100000;
+  var thousand = Math.floor(num / 1000); num %= 1000;
+  var rest = num;
+
+  var parts = [];
+  if (crore) parts.push(threeDigits(crore) + ' Crore');
+  if (lakh) parts.push(threeDigits(lakh) + ' Lakh');
+  if (thousand) parts.push(threeDigits(thousand) + ' Thousand');
+  if (rest) parts.push(threeDigits(rest));
+
+  return parts.join(' ') || 'Zero';
+}
+
+function buildReceiptCopyText(member, group, monthParts, rec) {
+  var methodLabel = (PAYMENT_METHODS.find(function (pm) { return pm.id === (rec.method || 'cash'); }) || PAYMENT_METHODS[0]).en;
+  return 'మృదుల చిట్టీ ఫండ్ · Mrudhula Chitti Fund\n' +
+    'రసీదు నం / Receipt No: ' + receiptNumber(rec.paidDate, group.id, member.seatNo) + '\n' +
+    'తేదీ / Date: ' + rec.paidDate + '\n\n' +
+    'సభ్యుడు / Member: ' + member.name + ' (సీటు / Seat ' + member.seatNo + ')\n' +
+    'గ్రూప్ / Group: ' + group.name + '\n' +
+    'నెల / Month: ' + monthParts.te + ' · ' + monthParts.en + '\n' +
+    'విధానం / Paid via: ' + methodLabel + '\n\n' +
+    'మొత్తం / Amount: ₹' + formatINR(rec.amount) + '\n' +
+    '(Rupees ' + numberToWordsIndian(rec.amount) + ' Only)';
+}
+
+
 /* =========================================================
    Inline icon set (stroke-based, 24x24 viewBox)
    ========================================================= */
@@ -645,6 +712,7 @@ var ICON_PATHS = {
   trash: '<polyline points="3 6 5 6 21 6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>',
   loader: '<line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="7.8" y2="7.8"/><line x1="16.2" y1="16.2" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="7.8" y2="16.2"/><line x1="16.2" y1="7.8" x2="19.1" y2="4.9"/>',
   download: '<path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 19h14"/>',
+  receipt: '<rect x="5" y="3" width="14" height="18" rx="1"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/>',
 };
 
 function icon(name, size, extraClass) {
@@ -688,6 +756,8 @@ var state = {
   winnerAmount: '',
   editingChitAmountGroupId: null,
   chitAmountInput: '',
+  receiptFor: null,
+  receiptCopied: false,
   saveErrorMsg: '',
   installEvent: null,
   showInstallBanner: false,
@@ -748,10 +818,17 @@ function persistUsage() {
 
 function computeTotals() {
   var totalCollected = 0;
-  for (var k in state.payments) { if (state.payments[k].paid) totalCollected += Number(state.payments[k].amount || 0); }
+  var methodTotals = { cash: 0, phonepe: 0 };
+  for (var k in state.payments) {
+    if (state.payments[k].paid) {
+      var amt = Number(state.payments[k].amount || 0);
+      totalCollected += amt;
+      methodTotals[state.payments[k].method === 'phonepe' ? 'phonepe' : 'cash'] += amt;
+    }
+  }
   var totalUsed = 0;
   for (var i = 0; i < state.usageLog.length; i++) totalUsed += Number(state.usageLog[i].amount || 0);
-  return { totalCollected: totalCollected, totalUsed: totalUsed, balance: totalCollected - totalUsed };
+  return { totalCollected: totalCollected, totalUsed: totalUsed, balance: totalCollected - totalUsed, methodTotals: methodTotals };
 }
 
 function computeThisMonth(monthKey) {
@@ -875,11 +952,30 @@ function renderOverview() {
       '<div class="card" style="padding:14px;flex:1"><div style="font-size:11px;color:var(--ink-soft)">వసూలు / Collected</div><div class="mono" style="font-size:17px;font-weight:700;color:var(--green)">₹' + formatINR(thisMonth.collected) + '</div></div>' +
       '<div class="card" style="padding:14px;flex:1"><div style="font-size:11px;color:var(--ink-soft)">వినియోగం / Used</div><div class="mono" style="font-size:17px;font-weight:700;color:var(--red)">₹' + formatINR(thisMonth.used) + '</div></div>' +
     '</div>' +
-    (thisMonth.collected > 0 ? '<div class="flex g4" style="margin-top:8px;font-size:11.5px;color:var(--ink-soft)">' +
-      '<div>నగదు Cash: <span class="mono" style="font-weight:600;color:var(--ink)">₹' + formatINR(thisMonth.methodTotals.cash) + '</span></div>' +
-      '<div>PhonePe: <span class="mono" style="font-weight:600;color:var(--ink)">₹' + formatINR(thisMonth.methodTotals.phonepe) + '</span></div>' +
-    '</div>' : '') +
   '</div>';
+
+  if (totals.totalCollected > 0) {
+    html += '<div>' + biLabel('చెల్లింపు విధానం వారీగా', 'By payment method') +
+      '<div class="grid2" style="margin-top:8px">' +
+        '<div class="card" style="padding:14px">' +
+          '<div style="font-size:11px;color:var(--ink-soft)">ఈ నెల నగదు / This month Cash</div>' +
+          '<div class="mono" style="font-size:16px;font-weight:700;margin-top:2px">₹' + formatINR(thisMonth.methodTotals.cash) + '</div>' +
+        '</div>' +
+        '<div class="card" style="padding:14px">' +
+          '<div style="font-size:11px;color:var(--ink-soft)">ఈ నెల PhonePe</div>' +
+          '<div class="mono" style="font-size:16px;font-weight:700;margin-top:2px">₹' + formatINR(thisMonth.methodTotals.phonepe) + '</div>' +
+        '</div>' +
+        '<div class="card" style="padding:14px">' +
+          '<div style="font-size:11px;color:var(--ink-soft)">మొత్తం నగదు / All-time Cash</div>' +
+          '<div class="mono" style="font-size:16px;font-weight:700;margin-top:2px;color:var(--brass)">₹' + formatINR(totals.methodTotals.cash) + '</div>' +
+        '</div>' +
+        '<div class="card" style="padding:14px">' +
+          '<div style="font-size:11px;color:var(--ink-soft)">మొత్తం PhonePe / All-time</div>' +
+          '<div class="mono" style="font-size:16px;font-weight:700;margin-top:2px;color:var(--brass)">₹' + formatINR(totals.methodTotals.phonepe) + '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
 
   if (groupStats.length > 0) {
     html += '<div>' + biLabel('గ్రూపుల వారీగా (ఈ నెల)', 'By group, this month') + '<div class="grid2" style="margin-top:8px">' +
@@ -998,6 +1094,7 @@ function renderPayments() {
       var won = hasWon(group.id, m.id);
       var methodLabel = isPaid ? (PAYMENT_METHODS.find(function (pm) { return pm.id === (rec.method || 'cash'); }) || PAYMENT_METHODS[0]).te : '';
       var editBtn = isPaid ? '<button class="icon-btn" data-action="' + (isEditing ? 'cancel-edit-payment' : 'start-edit-payment') + '" data-group-id="' + group.id + '" data-member-id="' + m.id + '" data-amount="' + rec.amount + '" data-date="' + rec.paidDate + '" data-method="' + (rec.method || 'cash') + '">' + icon('pencil', 14) + '</button>' : '';
+      var receiptBtn = isPaid ? '<button class="icon-btn" data-action="show-receipt" data-group-id="' + group.id + '" data-member-id="' + m.id + '" title="రసీదు / Receipt">' + icon('receipt', 14) + '</button>' : '';
       var rightControl = isPaid ?
         '<button data-action="toggle-payment" data-group-id="' + group.id + '" data-member-id="' + m.id + '"><span class="pill paid mono">కట్టారు / Paid</span></button>' :
         '<div class="flex g1">' + PAYMENT_METHODS.map(function (pm) {
@@ -1007,7 +1104,7 @@ function renderPayments() {
         '<div class="flex items-center justify-between g3 wrap">' +
           '<div style="min-width:0"><div style="font-size:14.5px;font-weight:600">' + esc(m.name) + '</div>' +
           '<div class="mono seat-note">సీటు ' + m.seatNo + ' · ₹' + formatINR(amountShown) + (isPaid ? ' · ' + esc(methodLabel) : '') + (won ? ' · <span style="color:var(--brass);font-weight:600">గెలిచారు ✓</span>' : '') + '</div></div>' +
-          '<div class="flex items-center g2">' + editBtn + rightControl + '</div>' +
+          '<div class="flex items-center g2">' + receiptBtn + editBtn + rightControl + '</div>' +
         '</div>';
       if (isEditing) {
         row += '<div class="stack" style="gap:10px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">' +
@@ -1243,6 +1340,55 @@ function renderActiveTab() {
   }
 }
 
+function renderReceiptModal() {
+  var groupId = state.receiptFor.groupId, memberId = state.receiptFor.memberId;
+  var group = state.groups.find(function (g) { return g.id === groupId; });
+  var member = group && group.members.find(function (m) { return m.id === memberId; });
+  var rec = state.payments[paymentKey(state.selectedMonth, groupId, memberId)];
+  if (!group || !member || !rec || !rec.paid) return '';
+
+  var monthParts = formatMonthParts(state.selectedMonth);
+  var methodLabel = (PAYMENT_METHODS.find(function (pm) { return pm.id === (rec.method || 'cash'); }) || PAYMENT_METHODS[0]);
+  var rno = receiptNumber(rec.paidDate, groupId, member.seatNo);
+
+  var body =
+    '<div id="receipt-print-area">' +
+      '<div style="text-align:center">' +
+        '<div class="display" style="font-size:19px;font-weight:600">మృదుల చిట్టీ ఫండ్</div>' +
+        '<div style="font-size:12px;color:var(--ink-soft)">Mrudhula Chitti Fund</div>' +
+      '</div>' +
+      '<div class="receipt-divider"></div>' +
+      '<div class="receipt-line"><span style="color:var(--ink-soft)">రసీదు నం / Receipt No</span><span class="mono" style="font-weight:600">' + esc(rno) + '</span></div>' +
+      '<div class="receipt-line"><span style="color:var(--ink-soft)">తేదీ / Date</span><span class="mono">' + esc(rec.paidDate) + '</span></div>' +
+      '<div class="receipt-divider"></div>' +
+      '<div class="receipt-line"><span style="color:var(--ink-soft)">సభ్యుడు / Member</span><span style="font-weight:600">' + esc(member.name) + '</span></div>' +
+      '<div class="receipt-line"><span style="color:var(--ink-soft)">సీటు / Seat</span><span class="mono">' + member.seatNo + '</span></div>' +
+      '<div class="receipt-line"><span style="color:var(--ink-soft)">గ్రూప్ / Group</span><span>' + esc(group.name) + '</span></div>' +
+      '<div class="receipt-line"><span style="color:var(--ink-soft)">నెల / Month</span><span>' + esc(monthParts.te) + ' · ' + esc(monthParts.en) + '</span></div>' +
+      '<div class="receipt-line"><span style="color:var(--ink-soft)">విధానం / Paid via</span><span>' + esc(methodLabel.te) + ' · ' + esc(methodLabel.en) + '</span></div>' +
+      '<div class="receipt-divider"></div>' +
+      '<div class="receipt-line" style="font-size:20px"><span style="font-weight:700">మొత్తం / Amount</span><span class="mono" style="font-weight:700;color:var(--navy)">₹' + formatINR(rec.amount) + '</span></div>' +
+      '<div style="font-size:11.5px;color:var(--ink-soft);margin-top:2px">(Rupees ' + esc(numberToWordsIndian(rec.amount)) + ' Only)</div>' +
+      '<div class="receipt-divider"></div>' +
+      '<div class="flex items-end justify-between" style="margin-top:24px">' +
+        '<div style="font-size:11px;color:var(--ink-soft)">Mrudhula Chitti Fund</div>' +
+        '<div style="text-align:center"><div style="width:130px;border-top:1px solid var(--ink-soft);padding-top:3px;font-size:10.5px;color:var(--ink-soft)">సంతకం / Signature</div></div>' +
+      '</div>' +
+    '</div>';
+
+  var actions =
+    '<div class="flex g2 no-print" style="margin-top:18px">' +
+      '<button class="btn-primary" style="flex:1" data-action="print-receipt">' + icon('receipt', 14) + ' ప్రింట్ / Print</button>' +
+      '<button class="btn-primary" style="flex:1;background:' + (state.receiptCopied ? 'var(--green)' : 'var(--navy)') + '" data-action="copy-receipt" data-group-id="' + groupId + '" data-member-id="' + memberId + '">' +
+        icon(state.receiptCopied ? 'check' : 'copy', 14) + (state.receiptCopied ? ' కాపీ అయ్యింది' : ' కాపీ / Copy') + '</button>' +
+    '</div>' +
+    '<button class="btn-ghost no-print w-full" style="margin-top:8px;text-align:center" data-action="close-receipt">మూసివేయి / Close</button>';
+
+  return '<div class="modal-backdrop no-print" data-action="close-receipt-backdrop">' +
+    '<div class="receipt-sheet" data-action="noop">' + body + actions + '</div>' +
+  '</div>';
+}
+
 function render() {
   var app = document.getElementById('app');
   if (!state.loaded) {
@@ -1250,13 +1396,14 @@ function render() {
       '<div class="flex-col items-center g3" style="color:var(--ink-soft)">' + icon('loader', 22, 'spin') + '<div style="font-size:13px">లోడ్ అవుతోంది... / Loading...</div></div></div>';
     return;
   }
-  var html = renderHeader() + renderTabBar();
+  var html = '<div class="no-print">' + renderHeader() + renderTabBar();
   if (state.activeTab !== 'members') html += renderMonthSelector();
   if (state.showInstallBanner) {
     html += '<div class="install-banner"><span>మీ ఫోన్‌లో హోమ్ స్క్రీన్‌కు యాడ్ చేయండి / Add this to your home screen</span><button data-action="trigger-install">ఇన్‌స్టాల్ / Install</button></div>';
   }
-  html += '<main>' + renderActiveTab() + '</main>';
-  if (state.saveErrorMsg) html += '<div class="save-toast">' + esc(state.saveErrorMsg) + '</div>';
+  html += '</div><main class="no-print">' + renderActiveTab() + '</main>';
+  if (state.saveErrorMsg) html += '<div class="save-toast no-print">' + esc(state.saveErrorMsg) + '</div>';
+  if (state.receiptFor) html += renderReceiptModal();
   app.innerHTML = html;
 }
 
@@ -1572,6 +1719,30 @@ function handleClick(e) {
         state.installEvent.prompt();
         state.installEvent.userChoice.finally(function () { state.installEvent = null; state.showInstallBanner = false; render(); });
       }
+      break;
+    case 'show-receipt':
+      state.receiptFor = { groupId: groupId, memberId: memberId };
+      state.receiptCopied = false;
+      break;
+    case 'close-receipt':
+    case 'close-receipt-backdrop':
+      state.receiptFor = null;
+      break;
+    case 'print-receipt':
+      window.print();
+      return; // no state change, skip re-render
+    case 'copy-receipt': {
+      var rGroup = state.groups.find(function (g) { return g.id === groupId; });
+      var rMember = rGroup && rGroup.members.find(function (m) { return m.id === memberId; });
+      var rRec = state.payments[paymentKey(state.selectedMonth, groupId, memberId)];
+      if (rGroup && rMember && rRec) {
+        copyText(buildReceiptCopyText(rMember, rGroup, formatMonthParts(state.selectedMonth), rRec));
+        state.receiptCopied = true;
+        setTimeout(function () { state.receiptCopied = false; render(); }, 2000);
+      }
+      break;
+    }
+    case 'noop':
       break;
   }
   render();
