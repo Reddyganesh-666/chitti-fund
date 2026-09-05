@@ -160,6 +160,48 @@ var PAYMENT_METHODS = [
   { id: 'phonepe', te: 'PhonePe', en: 'PhonePe' },
 ];
 
+// Chit-value ₹1,00,000 / 20-member payment schedule, applies to Chitti-2 and
+// Chitti-3 (per user-supplied Chit_Fund_Schedule.xlsx). Round 9's Auction Loss
+// was corrected from a printed 1950 to the pattern-consistent 19500 in the
+// source file itself; not something this app needs to act on further.
+var CHIT_SCHEDULE = [
+  { round: 1, installment: 3600, bonus: 1400, auctionLoss: 31500, payout: 68500 },
+  { round: 2, installment: 3650, bonus: 1350, auctionLoss: 30500, payout: 69500 },
+  { round: 3, installment: 3750, bonus: 1250, auctionLoss: 29000, payout: 71000 },
+  { round: 4, installment: 3850, bonus: 1150, auctionLoss: 27000, payout: 73000 },
+  { round: 5, installment: 3900, bonus: 1100, auctionLoss: 25500, payout: 74500 },
+  { round: 6, installment: 3950, bonus: 1050, auctionLoss: 24000, payout: 76000 },
+  { round: 7, installment: 4050, bonus: 950, auctionLoss: 22500, payout: 77500 },
+  { round: 8, installment: 4100, bonus: 900, auctionLoss: 21000, payout: 79000 },
+  { round: 9, installment: 4200, bonus: 800, auctionLoss: 19500, payout: 80500 },
+  { round: 10, installment: 4250, bonus: 750, auctionLoss: 18000, payout: 82000 },
+  { round: 11, installment: 4350, bonus: 650, auctionLoss: 16500, payout: 83500 },
+  { round: 12, installment: 4400, bonus: 600, auctionLoss: 15000, payout: 85000 },
+  { round: 13, installment: 4500, bonus: 500, auctionLoss: 13500, payout: 86500 },
+  { round: 14, installment: 4600, bonus: 400, auctionLoss: 12000, payout: 88000 },
+  { round: 15, installment: 4650, bonus: 350, auctionLoss: 10500, payout: 89500 },
+  { round: 16, installment: 4700, bonus: 300, auctionLoss: 9000, payout: 91000 },
+  { round: 17, installment: 4800, bonus: 200, auctionLoss: 7500, payout: 92500 },
+  { round: 18, installment: 4850, bonus: 150, auctionLoss: 6000, payout: 94000 },
+  { round: 19, installment: 4950, bonus: 50, auctionLoss: 4500, payout: 95500 },
+  { round: 20, installment: 5000, bonus: 0, auctionLoss: 3500, payout: 96500 }
+];
+function scheduleAppliesTo(group) { return group.id === 'g2' || group.id === 'g3'; }
+function getExpectedAmount(group, member) {
+  if (scheduleAppliesTo(group) && group.chitNumber) {
+    var row = CHIT_SCHEDULE.find(function (r) { return r.round === group.chitNumber; });
+    if (row) return row.installment;
+  }
+  return member.monthlyAmount || 0;
+}
+function getExpectedPayout(group) {
+  if (scheduleAppliesTo(group) && group.chitNumber) {
+    var row = CHIT_SCHEDULE.find(function (r) { return r.round === group.chitNumber; });
+    if (row) return row.payout;
+  }
+  return group.chitAmount || 0;
+}
+
 var SEED_GROUPS = [
   {
     "id": "g1",
@@ -308,6 +350,7 @@ var SEED_GROUPS = [
     "name": "Chitti-2",
     "note": "మీ ఫైల్‌లో \"SEAT NO: 11\" అని ఉంది",
     "chitAmount": 0,
+    "chitNumber": 12,
     "members": [
       {
         "id": "g2-s1",
@@ -449,6 +492,7 @@ var SEED_GROUPS = [
     "name": "Chitti-3",
     "note": "మీ ఫైల్‌లో \"SEAT NO: 9\" అని ఉంది",
     "chitAmount": 0,
+    "chitNumber": 10,
     "members": [
       {
         "id": "g3-s1",
@@ -652,7 +696,7 @@ function getReceiptEntries(groupId, memberId) {
   if (!group || !member || !rec || !rec.paid) return null;
   var entries = group.members
     .filter(function (m) { return m.name === member.name; })
-    .map(function (m) { return { member: m, rec: state.payments[paymentKey(state.selectedMonth, groupId, m.id)] }; })
+    .map(function (m) { return { member: m, rec: state.payments[paymentKey(state.selectedMonth, groupId, m.id)], expected: getExpectedAmount(group, m) }; })
     .filter(function (e) { return e.rec && e.rec.paid; })
     .sort(function (a, b) { return a.member.seatNo - b.member.seatNo; });
   return { group: group, entries: entries, isCombined: entries.length > 1 };
@@ -716,17 +760,24 @@ function buildReceiptCopyText(group, entries, monthParts) {
     'నెల / Month: ' + monthParts.te + ' · ' + monthParts.en + '\n';
 
   if (isCombined) {
+    var totalExpected = entries.reduce(function (s, e) { return s + (e.expected || 0); }, 0);
+    var totalShortfall = totalExpected > 0 ? Math.max(0, totalExpected - total) : 0;
     out += '\n' + entries.map(function (e, idx) {
       var ml = (PAYMENT_METHODS.find(function (pm) { return pm.id === (e.rec.method || 'cash'); }) || PAYMENT_METHODS[0]).en;
-      return (idx + 1) + ') ₹' + formatINR(e.rec.amount) + ' (' + ml + ')';
+      var rowShort = (e.expected > 0 && e.rec.amount < e.expected) ? (e.expected - e.rec.amount) : 0;
+      return (idx + 1) + ') ₹' + formatINR(e.rec.amount) + ' (' + ml + ')' + (rowShort > 0 ? ' ⚠️ ₹' + formatINR(rowShort) + ' తక్కువ / short' : '');
     }).join('\n') + '\n\n' +
       'మొత్తం / Total Amount: ₹' + formatINR(total) + '\n' +
-      '(Rupees ' + numberToWordsIndian(total) + ' Only)';
+      '(Rupees ' + numberToWordsIndian(total) + ' Only)' +
+      (totalShortfall > 0 ? ('\n⚠️ నిర్ధారిత మొత్తం / Expected Total: ₹' + formatINR(totalExpected) + ' — ₹' + formatINR(totalShortfall) + ' తక్కువ కట్టారు / short') : '');
   } else {
     var methodLabel = (PAYMENT_METHODS.find(function (pm) { return pm.id === (entries[0].rec.method || 'cash'); }) || PAYMENT_METHODS[0]).en;
+    var e0 = entries[0];
+    var shortfall = (e0.expected > 0 && e0.rec.amount < e0.expected) ? (e0.expected - e0.rec.amount) : 0;
     out += 'విధానం / Paid via: ' + methodLabel + '\n\n' +
-      'మొత్తం / Amount: ₹' + formatINR(total) + '\n' +
-      '(Rupees ' + numberToWordsIndian(total) + ' Only)';
+      (shortfall > 0 ? 'కట్టిన మొత్తం / Amount Paid: ₹' : 'మొత్తం / Amount: ₹') + formatINR(total) + '\n' +
+      '(Rupees ' + numberToWordsIndian(total) + ' Only)' +
+      (shortfall > 0 ? ('\nనిర్ధారిత మొత్తం / Expected Amount: ₹' + formatINR(e0.expected) + '\n⚠️ తక్కువ కట్టారు / Shortfall: ₹' + formatINR(shortfall)) : '');
   }
 
   out += '\n\nమీ సకాలంలో చెల్లింపుకు ధన్యవాదాలు! 🙏\nThank you for your timely payment!';
@@ -936,7 +987,7 @@ function computeUnpaid(monthKey) {
   state.groups.forEach(function (g) {
     g.members.forEach(function (m) {
       var rec = state.payments[paymentKey(monthKey, g.id, m.id)];
-      if (!(rec && rec.paid)) list.push({ id: m.id, name: m.name, seatNo: m.seatNo, monthlyAmount: m.monthlyAmount, groupId: g.id, groupName: g.name });
+      if (!(rec && rec.paid)) list.push({ id: m.id, name: m.name, seatNo: m.seatNo, monthlyAmount: m.monthlyAmount, expectedAmount: getExpectedAmount(g, m), groupId: g.id, groupName: g.name });
     });
   });
   return list;
@@ -1240,7 +1291,7 @@ function renderReminders() {
     var showDue = comparison === 'past' || reminderDue;
     return '<div class="card flex items-center justify-between g3 row-pad">' +
       '<div style="min-width:0"><div style="font-size:14.5px;font-weight:600">' + esc(m.name) + '</div>' +
-      '<div class="mono" style="font-size:12px;color:var(--ink-soft)">' + esc(m.groupName) + ' · సీటు ' + m.seatNo + ' · ₹' + formatINR(m.monthlyAmount) + '</div>' +
+      '<div class="mono" style="font-size:12px;color:var(--ink-soft)">' + esc(m.groupName) + ' · సీటు ' + m.seatNo + ' · ₹' + formatINR(m.expectedAmount) + '</div>' +
       (showDue ? '<span style="font-size:10.5px;font-weight:700;color:var(--red)">రిమైండర్ డ్యూ / Reminder due</span>' : '') + '</div>' +
       '<button data-action="copy-reminder" data-member-id="' + m.id + '" data-group-id="' + m.groupId + '" style="flex-shrink:0;background:' + (isCopied ? 'var(--green)' : 'var(--navy)') + ';color:#fff;padding:8px 13px;border-radius:3px;font-size:12.5px;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:6px">' +
         icon(isCopied ? 'check' : 'copy', 13) + (isCopied ? 'కాపీ అయ్యింది' : 'కాపీ') + '</button>' +
@@ -1328,9 +1379,11 @@ function renderMembers() {
           '<button class="btn-ghost" data-action="cancel-edit-chit-amount">రద్దు</button>' +
         '</div>';
       } else {
+        var payoutForDisplay = getExpectedPayout(g);
+        var payoutFromSchedule = scheduleAppliesTo(g) && g.chitNumber && CHIT_SCHEDULE.some(function (r) { return r.round === g.chitNumber; });
         inner += '<div class="flex items-center justify-between">' +
           '<div>' + biLabel('చిటీ మొత్తం', 'Chit amount (auto-fills winner payouts)') +
-            '<div class="mono" style="font-size:14px;font-weight:600;margin-top:3px;color:var(--brass)">' + (g.chitAmount ? '₹' + formatINR(g.chitAmount) : 'సెట్ చేయలేదు / not set') + '</div></div>' +
+            '<div class="mono" style="font-size:14px;font-weight:600;margin-top:3px;color:var(--brass)">' + (payoutForDisplay ? '₹' + formatINR(payoutForDisplay) + (payoutFromSchedule ? ' (షెడ్యూల్ ప్రకారం / from schedule)' : '') : 'సెట్ చేయలేదు / not set') + '</div></div>' +
           '<button class="icon-btn" data-action="start-edit-chit-amount" data-group-id="' + g.id + '">' + icon('pencil', 14) + '</button>' +
         '</div>';
       }
@@ -1442,14 +1495,21 @@ function renderReceiptModal() {
   var group = rg.group, entries = rg.entries, isCombined = rg.isCombined;
   var member = entries[0].member;
   var total = entries.reduce(function (sum, e) { return sum + (Number(e.rec.amount) || 0); }, 0);
+  var totalExpected = entries.reduce(function (s, e) { return s + (e.expected || 0); }, 0);
+  var totalShortfall = totalExpected > 0 ? Math.max(0, totalExpected - total) : 0;
   var latestDate = entries.reduce(function (l, e) { return (!l || e.rec.paidDate > l) ? e.rec.paidDate : l; }, null);
   var monthParts = formatMonthParts(state.selectedMonth);
   var rno = receiptNumber(latestDate, groupId, member.seatNo);
 
   var seatRows = isCombined ? entries.map(function (e, idx) {
     var ml = (PAYMENT_METHODS.find(function (pm) { return pm.id === (e.rec.method || 'cash'); }) || PAYMENT_METHODS[0]);
-    return '<div class="receipt-line"><span style="color:var(--ink-soft)">' + (idx + 1) + ')</span><span class="mono">₹' + formatINR(e.rec.amount) + ' · ' + esc(ml.te) + '</span></div>';
+    var rowShort = (e.expected > 0 && e.rec.amount < e.expected) ? (e.expected - e.rec.amount) : 0;
+    return '<div class="receipt-line"><span style="color:var(--ink-soft)">' + (idx + 1) + ')</span><span class="mono">₹' + formatINR(e.rec.amount) + ' · ' + esc(ml.te) + (rowShort > 0 ? ' <span style="color:var(--red);font-weight:700">⚠️ ₹' + formatINR(rowShort) + ' తక్కువ</span>' : '') + '</span></div>';
   }).join('') : '';
+
+  var shortfallBlock = totalShortfall > 0 ?
+    ('<div class="receipt-line"><span style="color:var(--ink-soft)">నిర్ధారిత మొత్తం / Expected</span><span class="mono">₹' + formatINR(totalExpected) + '</span></div>' +
+     '<div class="receipt-line" style="color:var(--red);font-weight:700"><span>⚠️ తక్కువ కట్టారు / Shortfall</span><span class="mono">₹' + formatINR(totalShortfall) + '</span></div>') : '';
 
   var body =
     '<div id="receipt-print-area">' +
@@ -1469,8 +1529,9 @@ function renderReceiptModal() {
       '<div class="receipt-divider"></div>' +
       seatRows +
       (isCombined ? '<div class="receipt-divider"></div>' : '') +
-      '<div class="receipt-line" style="font-size:20px"><span style="font-weight:700">' + (isCombined ? 'మొత్తం / Total Amount' : 'మొత్తం / Amount') + '</span><span class="mono" style="font-weight:700;color:var(--navy)">₹' + formatINR(total) + '</span></div>' +
+      '<div class="receipt-line" style="font-size:20px"><span style="font-weight:700">' + (isCombined ? 'మొత్తం / Total Amount' : (totalShortfall > 0 ? 'కట్టిన మొత్తం / Amount Paid' : 'మొత్తం / Amount')) + '</span><span class="mono" style="font-weight:700;color:var(--navy)">₹' + formatINR(total) + '</span></div>' +
       '<div style="font-size:11.5px;color:var(--ink-soft);margin-top:2px">(Rupees ' + esc(numberToWordsIndian(total)) + ' Only)</div>' +
+      shortfallBlock +
       '<div class="receipt-divider"></div>' +
       '<div style="text-align:center;font-size:12px;color:var(--ink-soft);padding:2px 0">మీ సకాలంలో చెల్లింపుకు ధన్యవాదాలు! 🙏<br>Thank you for your timely payment!</div>' +
       '<div class="receipt-divider"></div>' +
@@ -1643,7 +1704,7 @@ function handleClick(e) {
     case 'mark-paid-method': {
       var group = state.groups.find(function (g) { return g.id === groupId; });
       var member = group && group.members.find(function (m) { return m.id === memberId; });
-      if (member) markPaid(groupId, memberId, member.monthlyAmount, todayISO(), el.dataset.method);
+      if (member) markPaid(groupId, memberId, getExpectedAmount(group, member), todayISO(), el.dataset.method);
       break;
     }
     case 'start-edit-payment':
@@ -1666,7 +1727,7 @@ function handleClick(e) {
       var g2 = state.groups.find(function (g) { return g.id === groupId; });
       var m2 = g2 && g2.members.find(function (m) { return m.id === memberId; });
       if (m2) {
-        var msg = buildReminderMessage(m2, m2.monthlyAmount, formatMonthParts(state.selectedMonth), g2.name);
+        var msg = buildReminderMessage(m2, getExpectedAmount(g2, m2), formatMonthParts(state.selectedMonth), g2.name);
         copyText(msg);
         state.copiedId = memberId;
         setTimeout(function () { if (state.copiedId === memberId) { state.copiedId = null; render(); } }, 2000);
@@ -1794,7 +1855,7 @@ function handleClick(e) {
       var existingW = state.winners[wk];
       var wGroupForFill = state.groups.find(function (g) { return g.id === groupId; });
       state.winnerMemberId = existingW ? existingW.memberId : '';
-      state.winnerAmount = existingW ? String(existingW.amount) : ((wGroupForFill && wGroupForFill.chitAmount) ? String(wGroupForFill.chitAmount) : '');
+      state.winnerAmount = existingW ? String(existingW.amount) : ((wGroupForFill && getExpectedPayout(wGroupForFill)) ? String(getExpectedPayout(wGroupForFill)) : '');
       break;
     }
     case 'cancel-edit-winner':
