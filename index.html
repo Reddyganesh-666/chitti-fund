@@ -690,6 +690,31 @@ function buildReceiptCopyText(member, group, monthParts, rec) {
     '(Rupees ' + numberToWordsIndian(rec.amount) + ' Only)';
 }
 
+function toWhatsAppNumber(phone) {
+  var digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length === 10) return '91' + digits;
+  if (digits.length === 12 && digits.indexOf('91') === 0) return digits;
+  return digits;
+}
+
+function whatsappReceiptLink(member, group, monthParts, rec) {
+  var text = encodeURIComponent(buildReceiptCopyText(member, group, monthParts, rec));
+  var waNumber = toWhatsAppNumber(member.phone);
+  return waNumber ? ('https://wa.me/' + waNumber + '?text=' + text) : ('https://wa.me/?text=' + text);
+}
+
+function isIOSDevice() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent || '');
+}
+
+function smsReceiptLink(member, group, monthParts, rec) {
+  var text = encodeURIComponent(buildReceiptCopyText(member, group, monthParts, rec));
+  var number = String((member.phone || '')).replace(/\D/g, '');
+  var sep = isIOSDevice() ? '&' : '?';
+  return 'sms:' + number + sep + 'body=' + text;
+}
+
 
 /* =========================================================
    Inline icon set (stroke-based, 24x24 viewBox)
@@ -713,6 +738,8 @@ var ICON_PATHS = {
   loader: '<line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.9" y1="4.9" x2="7.8" y2="7.8"/><line x1="16.2" y1="16.2" x2="19.1" y2="19.1"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.9" y1="19.1" x2="7.8" y2="16.2"/><line x1="16.2" y1="7.8" x2="19.1" y2="4.9"/>',
   download: '<path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 19h14"/>',
   receipt: '<rect x="5" y="3" width="14" height="18" rx="1"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/>',
+  send: '<path d="M4 12L20 4L13 20L11 13L4 12Z"/>',
+  message: '<path d="M4 4h16v13H8l-4 4V4z"/>',
 };
 
 function icon(name, size, extraClass) {
@@ -1376,8 +1403,19 @@ function renderReceiptModal() {
       '</div>' +
     '</div>';
 
+  var hasPhone = !!(member.phone && member.phone.trim());
+
   var actions =
     '<div class="flex g2 no-print" style="margin-top:18px">' +
+      '<button data-action="send-whatsapp-receipt" data-group-id="' + groupId + '" data-member-id="' + memberId + '" ' +
+        'style="flex:1;background:#25D366;color:#fff;padding:11px 10px;border-radius:4px;font-size:13.5px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">' +
+        icon('send', 15) + ' WhatsApp</button>' +
+      '<button data-action="send-sms-receipt" data-group-id="' + groupId + '" data-member-id="' + memberId + '" ' +
+        'style="flex:1;background:var(--navy);color:#fff;padding:11px 10px;border-radius:4px;font-size:13.5px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">' +
+        icon('message', 15) + ' SMS</button>' +
+    '</div>' +
+    (hasPhone ? '' : '<div style="font-size:11px;color:var(--ink-soft);margin-top:6px;text-align:center">ఫోన్ నంబర్ సేవ్ లేదు — పంపేటప్పుడు నంబర్ ఎంచుకోండి / No phone saved — choose the contact when it opens</div>') +
+    '<div class="flex g2 no-print" style="margin-top:10px">' +
       '<button class="btn-primary" style="flex:1" data-action="print-receipt">' + icon('receipt', 14) + ' ప్రింట్ / Print</button>' +
       '<button class="btn-primary" style="flex:1;background:' + (state.receiptCopied ? 'var(--green)' : 'var(--navy)') + '" data-action="copy-receipt" data-group-id="' + groupId + '" data-member-id="' + memberId + '">' +
         icon(state.receiptCopied ? 'check' : 'copy', 14) + (state.receiptCopied ? ' కాపీ అయ్యింది' : ' కాపీ / Copy') + '</button>' +
@@ -1741,6 +1779,24 @@ function handleClick(e) {
         setTimeout(function () { state.receiptCopied = false; render(); }, 2000);
       }
       break;
+    }
+    case 'send-whatsapp-receipt': {
+      var wGroup = state.groups.find(function (g) { return g.id === groupId; });
+      var wMember = wGroup && wGroup.members.find(function (m) { return m.id === memberId; });
+      var wRec = state.payments[paymentKey(state.selectedMonth, groupId, memberId)];
+      if (wGroup && wMember && wRec) {
+        window.open(whatsappReceiptLink(wMember, wGroup, formatMonthParts(state.selectedMonth), wRec), '_blank');
+      }
+      return; // no state change, skip re-render
+    }
+    case 'send-sms-receipt': {
+      var sGroup = state.groups.find(function (g) { return g.id === groupId; });
+      var sMember = sGroup && sGroup.members.find(function (m) { return m.id === memberId; });
+      var sRec = state.payments[paymentKey(state.selectedMonth, groupId, memberId)];
+      if (sGroup && sMember && sRec) {
+        window.location.href = smsReceiptLink(sMember, sGroup, formatMonthParts(state.selectedMonth), sRec);
+      }
+      return; // no state change, skip re-render
     }
     case 'noop':
       break;

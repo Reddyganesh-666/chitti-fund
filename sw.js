@@ -1,8 +1,9 @@
 // Mrudhula Chitti Fund — service worker
-// Caches the app shell so the tracker keeps working offline once it has
-// loaded successfully at least once from its hosted URL.
+// Network-first: while online, always fetches the latest files from GitHub
+// Pages (so app updates show up immediately); falls back to the cached copy
+// only when offline, so the tracker still opens without a connection.
 
-var CACHE_NAME = 'chitti-fund-shell-v1';
+var CACHE_NAME = 'chitti-fund-shell-v2';
 var APP_SHELL = [
   './',
   './index.html',
@@ -34,17 +35,15 @@ self.addEventListener('fetch', function (event) {
   if (event.request.method !== 'GET') return;
 
   event.respondWith(
-    caches.match(event.request).then(function (cached) {
-      var networkFetch = fetch(event.request).then(function (response) {
-        if (response && (response.status === 200 || response.type === 'opaque')) {
-          var copy = response.clone();
-          caches.open(CACHE_NAME).then(function (cache) { cache.put(event.request, copy); });
-        }
-        return response;
-      }).catch(function () { return cached; });
-      // app-shell files: prefer cache first (fast, works offline); everything else: network first
-      var isShellRequest = APP_SHELL.some(function (path) { return event.request.url.indexOf(path.replace('./', '')) !== -1; });
-      return isShellRequest ? (cached || networkFetch) : networkFetch;
+    fetch(event.request).then(function (response) {
+      if (response && (response.status === 200 || response.type === 'opaque')) {
+        var copy = response.clone();
+        caches.open(CACHE_NAME).then(function (cache) { cache.put(event.request, copy); });
+      }
+      return response;
+    }).catch(function () {
+      return caches.match(event.request);
     })
   );
 });
+
