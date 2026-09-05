@@ -645,6 +645,19 @@ function receiptNumber(paidDate, groupId, seatNo) {
   return compact + '-' + String(seatNo || 0).padStart(2, '0');
 }
 
+function getReceiptEntries(groupId, memberId) {
+  var group = state.groups.find(function (g) { return g.id === groupId; });
+  var member = group && group.members.find(function (m) { return m.id === memberId; });
+  var rec = group && state.payments[paymentKey(state.selectedMonth, groupId, memberId)];
+  if (!group || !member || !rec || !rec.paid) return null;
+  var entries = group.members
+    .filter(function (m) { return m.name === member.name; })
+    .map(function (m) { return { member: m, rec: state.payments[paymentKey(state.selectedMonth, groupId, m.id)] }; })
+    .filter(function (e) { return e.rec && e.rec.paid; })
+    .sort(function (a, b) { return a.member.seatNo - b.member.seatNo; });
+  return { group: group, entries: entries, isCombined: entries.length > 1 };
+}
+
 function ordinalEn(n) {
   var j = n % 10, k = n % 100;
   if (j === 1 && k !== 11) return n + 'st';
@@ -687,19 +700,37 @@ function numberToWordsIndian(num) {
   return parts.join(' ') || 'Zero';
 }
 
-function buildReceiptCopyText(member, group, monthParts, rec) {
-  var methodLabel = (PAYMENT_METHODS.find(function (pm) { return pm.id === (rec.method || 'cash'); }) || PAYMENT_METHODS[0]).en;
-  return 'మృదుల చిట్టీ ఫండ్ · Mrudhula Chitti Fund\n' +
-    'రసీదు నం / Receipt No: ' + receiptNumber(rec.paidDate, group.id, member.seatNo) + '\n' +
-    'తేదీ / Date: ' + rec.paidDate + '\n\n' +
-    'సభ్యుడు / Member: ' + member.name + ' (సీటు / Seat ' + member.seatNo + ')\n' +
+function buildReceiptCopyText(group, entries, monthParts) {
+  var isCombined = entries.length > 1;
+  var member = entries[0].member;
+  var total = entries.reduce(function (sum, e) { return sum + (Number(e.rec.amount) || 0); }, 0);
+  var latestDate = entries.reduce(function (l, e) { return (!l || e.rec.paidDate > l) ? e.rec.paidDate : l; }, null);
+  var rno = receiptNumber(latestDate, group.id, entries[0].member.seatNo);
+
+  var out = 'మృదుల చిట్టీ ఫండ్ · Mrudhula Chitti Fund\n' +
+    'రసీదు నం / Receipt No: ' + rno + '\n' +
+    'తేదీ / Date: ' + latestDate + '\n\n' +
+    'సభ్యుడు / Member: ' + member.name + '\n' +
     'గ్రూప్ / Group: ' + group.name + '\n' +
     (group.chitNumber ? ('చిట్టీ నం / Chit No.: ' + ordinalTe(group.chitNumber) + ' · ' + ordinalEn(group.chitNumber) + '\n') : '') +
-    'నెల / Month: ' + monthParts.te + ' · ' + monthParts.en + '\n' +
-    'విధానం / Paid via: ' + methodLabel + '\n\n' +
-    'మొత్తం / Amount: ₹' + formatINR(rec.amount) + '\n' +
-    '(Rupees ' + numberToWordsIndian(rec.amount) + ' Only)\n\n' +
-    'మీ సకాలంలో చెల్లింపుకు ధన్యవాదాలు! 🙏\nThank you for your timely payment!';
+    'నెల / Month: ' + monthParts.te + ' · ' + monthParts.en + '\n';
+
+  if (isCombined) {
+    out += '\n' + entries.map(function (e, idx) {
+      var ml = (PAYMENT_METHODS.find(function (pm) { return pm.id === (e.rec.method || 'cash'); }) || PAYMENT_METHODS[0]).en;
+      return (idx + 1) + ') ₹' + formatINR(e.rec.amount) + ' (' + ml + ')';
+    }).join('\n') + '\n\n' +
+      'మొత్తం / Total Amount: ₹' + formatINR(total) + '\n' +
+      '(Rupees ' + numberToWordsIndian(total) + ' Only)';
+  } else {
+    var methodLabel = (PAYMENT_METHODS.find(function (pm) { return pm.id === (entries[0].rec.method || 'cash'); }) || PAYMENT_METHODS[0]).en;
+    out += 'విధానం / Paid via: ' + methodLabel + '\n\n' +
+      'మొత్తం / Amount: ₹' + formatINR(total) + '\n' +
+      '(Rupees ' + numberToWordsIndian(total) + ' Only)';
+  }
+
+  out += '\n\nమీ సకాలంలో చెల్లింపుకు ధన్యవాదాలు! 🙏\nThank you for your timely payment!';
+  return out;
 }
 
 function toWhatsAppNumber(phone) {
@@ -710,9 +741,9 @@ function toWhatsAppNumber(phone) {
   return digits;
 }
 
-function whatsappReceiptLink(member, group, monthParts, rec) {
-  var text = encodeURIComponent(buildReceiptCopyText(member, group, monthParts, rec));
-  var waNumber = toWhatsAppNumber(member.phone);
+function whatsappReceiptLink(group, entries, monthParts) {
+  var text = encodeURIComponent(buildReceiptCopyText(group, entries, monthParts));
+  var waNumber = toWhatsAppNumber(entries[0].member.phone);
   return waNumber ? ('https://wa.me/' + waNumber + '?text=' + text) : ('https://wa.me/?text=' + text);
 }
 
@@ -720,12 +751,13 @@ function isIOSDevice() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent || '');
 }
 
-function smsReceiptLink(member, group, monthParts, rec) {
-  var text = encodeURIComponent(buildReceiptCopyText(member, group, monthParts, rec));
-  var number = String((member.phone || '')).replace(/\D/g, '');
+function smsReceiptLink(group, entries, monthParts) {
+  var text = encodeURIComponent(buildReceiptCopyText(group, entries, monthParts));
+  var number = String((entries[0].member.phone || '')).replace(/\D/g, '');
   var sep = isIOSDevice() ? '&' : '?';
   return 'sms:' + number + sep + 'body=' + text;
 }
+
 
 
 /* =========================================================
@@ -789,6 +821,7 @@ var state = {
   editMemberName: '',
   editMemberPhone: '',
   editMemberAmount: '',
+  nameSyncNotice: null,
   winners: {},
   editingWinnerKey: null,
   winnerMemberId: '',
@@ -1274,6 +1307,10 @@ function renderUsage() {
 function renderMembers() {
   var html = '<div class="container stack" style="padding-top:4px;padding-bottom:32px">';
 
+  if (state.nameSyncNotice) {
+    html += '<div class="card" style="padding:10px 14px;background:var(--green);color:#fff;font-size:13px;font-weight:600">' + esc(state.nameSyncNotice) + '</div>';
+  }
+
   html += state.groups.map(function (g) {
     var isOpen = state.expandedGroupId === g.id;
     var f = ensureMemberForm(g.id);
@@ -1400,14 +1437,19 @@ function renderActiveTab() {
 
 function renderReceiptModal() {
   var groupId = state.receiptFor.groupId, memberId = state.receiptFor.memberId;
-  var group = state.groups.find(function (g) { return g.id === groupId; });
-  var member = group && group.members.find(function (m) { return m.id === memberId; });
-  var rec = state.payments[paymentKey(state.selectedMonth, groupId, memberId)];
-  if (!group || !member || !rec || !rec.paid) return '';
-
+  var rg = getReceiptEntries(groupId, memberId);
+  if (!rg) return '';
+  var group = rg.group, entries = rg.entries, isCombined = rg.isCombined;
+  var member = entries[0].member;
+  var total = entries.reduce(function (sum, e) { return sum + (Number(e.rec.amount) || 0); }, 0);
+  var latestDate = entries.reduce(function (l, e) { return (!l || e.rec.paidDate > l) ? e.rec.paidDate : l; }, null);
   var monthParts = formatMonthParts(state.selectedMonth);
-  var methodLabel = (PAYMENT_METHODS.find(function (pm) { return pm.id === (rec.method || 'cash'); }) || PAYMENT_METHODS[0]);
-  var rno = receiptNumber(rec.paidDate, groupId, member.seatNo);
+  var rno = receiptNumber(latestDate, groupId, member.seatNo);
+
+  var seatRows = isCombined ? entries.map(function (e, idx) {
+    var ml = (PAYMENT_METHODS.find(function (pm) { return pm.id === (e.rec.method || 'cash'); }) || PAYMENT_METHODS[0]);
+    return '<div class="receipt-line"><span style="color:var(--ink-soft)">' + (idx + 1) + ')</span><span class="mono">₹' + formatINR(e.rec.amount) + ' · ' + esc(ml.te) + '</span></div>';
+  }).join('') : '';
 
   var body =
     '<div id="receipt-print-area">' +
@@ -1417,17 +1459,18 @@ function renderReceiptModal() {
       '</div>' +
       '<div class="receipt-divider"></div>' +
       '<div class="receipt-line"><span style="color:var(--ink-soft)">రసీదు నం / Receipt No</span><span class="mono" style="font-weight:600">' + esc(rno) + '</span></div>' +
-      '<div class="receipt-line"><span style="color:var(--ink-soft)">తేదీ / Date</span><span class="mono">' + esc(rec.paidDate) + '</span></div>' +
+      '<div class="receipt-line"><span style="color:var(--ink-soft)">తేదీ / Date</span><span class="mono">' + esc(latestDate) + '</span></div>' +
       '<div class="receipt-divider"></div>' +
       '<div class="receipt-line"><span style="color:var(--ink-soft)">సభ్యుడు / Member</span><span style="font-weight:600">' + esc(member.name) + '</span></div>' +
-      '<div class="receipt-line"><span style="color:var(--ink-soft)">సీటు / Seat</span><span class="mono">' + member.seatNo + '</span></div>' +
       '<div class="receipt-line"><span style="color:var(--ink-soft)">గ్రూప్ / Group</span><span>' + esc(group.name) + '</span></div>' +
       (group.chitNumber ? '<div class="receipt-line"><span style="color:var(--ink-soft)">చిట్టీ నం / Chit No.</span><span class="mono" style="font-weight:600">' + ordinalTe(group.chitNumber) + ' · ' + ordinalEn(group.chitNumber) + '</span></div>' : '') +
       '<div class="receipt-line"><span style="color:var(--ink-soft)">నెల / Month</span><span>' + esc(monthParts.te) + ' · ' + esc(monthParts.en) + '</span></div>' +
-      '<div class="receipt-line"><span style="color:var(--ink-soft)">విధానం / Paid via</span><span>' + esc(methodLabel.te) + ' · ' + esc(methodLabel.en) + '</span></div>' +
+      (isCombined ? '' : '<div class="receipt-line"><span style="color:var(--ink-soft)">విధానం / Paid via</span><span>' + esc((PAYMENT_METHODS.find(function (pm) { return pm.id === (entries[0].rec.method || 'cash'); }) || PAYMENT_METHODS[0]).te) + ' · ' + esc((PAYMENT_METHODS.find(function (pm) { return pm.id === (entries[0].rec.method || 'cash'); }) || PAYMENT_METHODS[0]).en) + '</span></div>') +
       '<div class="receipt-divider"></div>' +
-      '<div class="receipt-line" style="font-size:20px"><span style="font-weight:700">మొత్తం / Amount</span><span class="mono" style="font-weight:700;color:var(--navy)">₹' + formatINR(rec.amount) + '</span></div>' +
-      '<div style="font-size:11.5px;color:var(--ink-soft);margin-top:2px">(Rupees ' + esc(numberToWordsIndian(rec.amount)) + ' Only)</div>' +
+      seatRows +
+      (isCombined ? '<div class="receipt-divider"></div>' : '') +
+      '<div class="receipt-line" style="font-size:20px"><span style="font-weight:700">' + (isCombined ? 'మొత్తం / Total Amount' : 'మొత్తం / Amount') + '</span><span class="mono" style="font-weight:700;color:var(--navy)">₹' + formatINR(total) + '</span></div>' +
+      '<div style="font-size:11.5px;color:var(--ink-soft);margin-top:2px">(Rupees ' + esc(numberToWordsIndian(total)) + ' Only)</div>' +
       '<div class="receipt-divider"></div>' +
       '<div style="text-align:center;font-size:12px;color:var(--ink-soft);padding:2px 0">మీ సకాలంలో చెల్లింపుకు ధన్యవాదాలు! 🙏<br>Thank you for your timely payment!</div>' +
       '<div class="receipt-divider"></div>' +
@@ -1440,7 +1483,8 @@ function renderReceiptModal() {
   var hasPhone = !!(member.phone && member.phone.trim());
 
   var actions =
-    '<div class="flex g2 no-print" style="margin-top:18px">' +
+    (isCombined ? '<div style="font-size:11.5px;color:var(--brass);font-weight:600;margin-top:14px;text-align:center">' + entries.length + ' సీట్లు కలిపి ఒకే రసీదు / ' + entries.length + ' seats combined into one receipt</div>' : '') +
+    '<div class="flex g2 no-print" style="margin-top:' + (isCombined ? '8' : '18') + 'px">' +
       '<button data-action="send-whatsapp-receipt" data-group-id="' + groupId + '" data-member-id="' + memberId + '" ' +
         'style="flex:1;background:#25D366;color:#fff;padding:11px 10px;border-radius:4px;font-size:13.5px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">' +
         icon('send', 15) + ' WhatsApp</button>' +
@@ -1712,10 +1756,27 @@ function handleClick(e) {
       var geditGrp = state.groups.find(function (g) { return g.id === groupId; });
       var editMember = geditGrp && geditGrp.members.find(function (m) { return m.id === memberId; });
       if (editMember) {
-        editMember.name = state.editMemberName.trim();
+        var oldNameForSync = editMember.name;
+        var newNameForSync = state.editMemberName.trim();
+        editMember.name = newNameForSync;
         editMember.phone = state.editMemberPhone.trim();
         editMember.monthlyAmount = Number(state.editMemberAmount);
+        var syncedSeatsCount = 0;
+        if (oldNameForSync && newNameForSync !== oldNameForSync) {
+          state.groups.forEach(function (gg) {
+            gg.members.forEach(function (mm) {
+              if (mm.id !== editMember.id && mm.name === oldNameForSync) {
+                mm.name = newNameForSync;
+                syncedSeatsCount++;
+              }
+            });
+          });
+        }
         persistGroups();
+        if (syncedSeatsCount > 0) {
+          state.nameSyncNotice = '"' + newNameForSync + '" పేరు మొత్తం ' + (syncedSeatsCount + 1) + ' సీట్లలో అప్‌డేట్ అయ్యింది / Updated across ' + (syncedSeatsCount + 1) + ' seats';
+          setTimeout(function () { state.nameSyncNotice = null; render(); }, 4000);
+        }
       }
       state.editingMemberId = null;
       break;
@@ -1822,31 +1883,25 @@ function handleClick(e) {
       window.print();
       return; // no state change, skip re-render
     case 'copy-receipt': {
-      var rGroup = state.groups.find(function (g) { return g.id === groupId; });
-      var rMember = rGroup && rGroup.members.find(function (m) { return m.id === memberId; });
-      var rRec = state.payments[paymentKey(state.selectedMonth, groupId, memberId)];
-      if (rGroup && rMember && rRec) {
-        copyText(buildReceiptCopyText(rMember, rGroup, formatMonthParts(state.selectedMonth), rRec));
+      var rrg = getReceiptEntries(groupId, memberId);
+      if (rrg) {
+        copyText(buildReceiptCopyText(rrg.group, rrg.entries, formatMonthParts(state.selectedMonth)));
         state.receiptCopied = true;
         setTimeout(function () { state.receiptCopied = false; render(); }, 2000);
       }
       break;
     }
     case 'send-whatsapp-receipt': {
-      var wGroup = state.groups.find(function (g) { return g.id === groupId; });
-      var wMember = wGroup && wGroup.members.find(function (m) { return m.id === memberId; });
-      var wRec = state.payments[paymentKey(state.selectedMonth, groupId, memberId)];
-      if (wGroup && wMember && wRec) {
-        window.open(whatsappReceiptLink(wMember, wGroup, formatMonthParts(state.selectedMonth), wRec), '_blank');
+      var wrg = getReceiptEntries(groupId, memberId);
+      if (wrg) {
+        window.open(whatsappReceiptLink(wrg.group, wrg.entries, formatMonthParts(state.selectedMonth)), '_blank');
       }
       return; // no state change, skip re-render
     }
     case 'send-sms-receipt': {
-      var sGroup = state.groups.find(function (g) { return g.id === groupId; });
-      var sMember = sGroup && sGroup.members.find(function (m) { return m.id === memberId; });
-      var sRec = state.payments[paymentKey(state.selectedMonth, groupId, memberId)];
-      if (sGroup && sMember && sRec) {
-        window.location.href = smsReceiptLink(sMember, sGroup, formatMonthParts(state.selectedMonth), sRec);
+      var srg = getReceiptEntries(groupId, memberId);
+      if (srg) {
+        window.location.href = smsReceiptLink(srg.group, srg.entries, formatMonthParts(state.selectedMonth));
       }
       return; // no state change, skip re-render
     }
