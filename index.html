@@ -166,6 +166,7 @@ var SEED_GROUPS = [
     "name": "Chitti-1",
     "note": "మీ ఫైల్‌లో \"SEAT NO: 1,00,000\" అని ఉంది",
     "chitAmount": 100000,
+    "chitNumber": 18,
     "members": [
       {
         "id": "g1-s1",
@@ -644,6 +645,15 @@ function receiptNumber(paidDate, groupId, seatNo) {
   return compact + '-' + String(seatNo || 0).padStart(2, '0');
 }
 
+function ordinalEn(n) {
+  var j = n % 10, k = n % 100;
+  if (j === 1 && k !== 11) return n + 'st';
+  if (j === 2 && k !== 12) return n + 'nd';
+  if (j === 3 && k !== 13) return n + 'rd';
+  return n + 'th';
+}
+function ordinalTe(n) { return n + 'వ'; }
+
 function numberToWordsIndian(num) {
   num = Math.round(Number(num) || 0);
   if (num === 0) return 'Zero';
@@ -684,10 +694,12 @@ function buildReceiptCopyText(member, group, monthParts, rec) {
     'తేదీ / Date: ' + rec.paidDate + '\n\n' +
     'సభ్యుడు / Member: ' + member.name + ' (సీటు / Seat ' + member.seatNo + ')\n' +
     'గ్రూప్ / Group: ' + group.name + '\n' +
+    (group.chitNumber ? ('చిట్టీ నం / Chit No.: ' + ordinalTe(group.chitNumber) + ' · ' + ordinalEn(group.chitNumber) + '\n') : '') +
     'నెల / Month: ' + monthParts.te + ' · ' + monthParts.en + '\n' +
     'విధానం / Paid via: ' + methodLabel + '\n\n' +
     'మొత్తం / Amount: ₹' + formatINR(rec.amount) + '\n' +
-    '(Rupees ' + numberToWordsIndian(rec.amount) + ' Only)';
+    '(Rupees ' + numberToWordsIndian(rec.amount) + ' Only)\n\n' +
+    'మీ సకాలంలో చెల్లింపుకు ధన్యవాదాలు! 🙏\nThank you for your timely payment!';
 }
 
 function toWhatsAppNumber(phone) {
@@ -783,6 +795,8 @@ var state = {
   winnerAmount: '',
   editingChitAmountGroupId: null,
   chitAmountInput: '',
+  editingChitNumberGroupId: null,
+  chitNumberInput: '',
   receiptFor: null,
   receiptCopied: false,
   saveErrorMsg: '',
@@ -1285,6 +1299,23 @@ function renderMembers() {
       }
       inner += '</div>';
 
+      var isEditingChitNo = state.editingChitNumberGroupId === g.id;
+      inner += '<div style="padding:10px 14px;border-bottom:1px solid var(--line)">';
+      if (isEditingChitNo) {
+        inner += '<div class="flex items-end g2 wrap">' +
+          '<div><div class="field-label">చిట్టీ నం / Chit No. (ఈ గ్రూప్ ఇప్పుడు ఎన్నో నెల నడుస్తోంది)</div><input type="number" class="mono" style="width:100px" data-scope="chit-number-input" value="' + esc(state.chitNumberInput) + '"></div>' +
+          '<button class="btn-primary" data-action="save-chit-number" data-group-id="' + g.id + '">సేవ్</button>' +
+          '<button class="btn-ghost" data-action="cancel-edit-chit-number">రద్దు</button>' +
+        '</div>';
+      } else {
+        inner += '<div class="flex items-center justify-between">' +
+          '<div>' + biLabel('చిట్టీ నం', 'Chit No. (shown on receipts)') +
+            '<div class="mono" style="font-size:14px;font-weight:600;margin-top:3px;color:var(--brass)">' + (g.chitNumber ? ordinalTe(g.chitNumber) + ' · ' + ordinalEn(g.chitNumber) : 'సెట్ చేయలేదు / not set') + '</div></div>' +
+          '<button class="icon-btn" data-action="start-edit-chit-number" data-group-id="' + g.id + '">' + icon('pencil', 14) + '</button>' +
+        '</div>';
+      }
+      inner += '</div>';
+
       inner += '<div class="rows">' + g.members.map(function (m) {
         var armed = state.confirmDeleteMember && state.confirmDeleteMember.groupId === g.id && state.confirmDeleteMember.memberId === m.id;
         var isEditingM = state.editingMemberId === m.id;
@@ -1391,11 +1422,14 @@ function renderReceiptModal() {
       '<div class="receipt-line"><span style="color:var(--ink-soft)">సభ్యుడు / Member</span><span style="font-weight:600">' + esc(member.name) + '</span></div>' +
       '<div class="receipt-line"><span style="color:var(--ink-soft)">సీటు / Seat</span><span class="mono">' + member.seatNo + '</span></div>' +
       '<div class="receipt-line"><span style="color:var(--ink-soft)">గ్రూప్ / Group</span><span>' + esc(group.name) + '</span></div>' +
+      (group.chitNumber ? '<div class="receipt-line"><span style="color:var(--ink-soft)">చిట్టీ నం / Chit No.</span><span class="mono" style="font-weight:600">' + ordinalTe(group.chitNumber) + ' · ' + ordinalEn(group.chitNumber) + '</span></div>' : '') +
       '<div class="receipt-line"><span style="color:var(--ink-soft)">నెల / Month</span><span>' + esc(monthParts.te) + ' · ' + esc(monthParts.en) + '</span></div>' +
       '<div class="receipt-line"><span style="color:var(--ink-soft)">విధానం / Paid via</span><span>' + esc(methodLabel.te) + ' · ' + esc(methodLabel.en) + '</span></div>' +
       '<div class="receipt-divider"></div>' +
       '<div class="receipt-line" style="font-size:20px"><span style="font-weight:700">మొత్తం / Amount</span><span class="mono" style="font-weight:700;color:var(--navy)">₹' + formatINR(rec.amount) + '</span></div>' +
       '<div style="font-size:11.5px;color:var(--ink-soft);margin-top:2px">(Rupees ' + esc(numberToWordsIndian(rec.amount)) + ' Only)</div>' +
+      '<div class="receipt-divider"></div>' +
+      '<div style="text-align:center;font-size:12px;color:var(--ink-soft);padding:2px 0">మీ సకాలంలో చెల్లింపుకు ధన్యవాదాలు! 🙏<br>Thank you for your timely payment!</div>' +
       '<div class="receipt-divider"></div>' +
       '<div class="flex items-end justify-between" style="margin-top:24px">' +
         '<div style="font-size:11px;color:var(--ink-soft)">Mrudhula Chitti Fund</div>' +
@@ -1752,6 +1786,24 @@ function handleClick(e) {
       state.editingChitAmountGroupId = null;
       break;
     }
+    case 'start-edit-chit-number': {
+      state.editingChitNumberGroupId = groupId;
+      var gForNo = state.groups.find(function (g) { return g.id === groupId; });
+      state.chitNumberInput = (gForNo && gForNo.chitNumber) ? String(gForNo.chitNumber) : '';
+      break;
+    }
+    case 'cancel-edit-chit-number':
+      state.editingChitNumberGroupId = null;
+      break;
+    case 'save-chit-number': {
+      var gToSetNo = state.groups.find(function (g) { return g.id === groupId; });
+      if (gToSetNo) {
+        gToSetNo.chitNumber = Number(state.chitNumberInput) || 0;
+        persistGroups();
+      }
+      state.editingChitNumberGroupId = null;
+      break;
+    }
     case 'trigger-install':
       if (state.installEvent) {
         state.installEvent.prompt();
@@ -1825,6 +1877,7 @@ function handleInput(e) {
     case 'winner-member-select': state.winnerMemberId = val; break;
     case 'winner-amount': state.winnerAmount = val; break;
     case 'chit-amount-input': state.chitAmountInput = val; break;
+    case 'chit-number-input': state.chitNumberInput = val; break;
   }
   /* deliberately no render() here — a full innerHTML re-render on every
      keystroke would reset input focus/cursor. state stays in sync silently
